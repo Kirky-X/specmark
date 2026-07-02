@@ -1,94 +1,96 @@
-# Clarify — Structured clarification before propose
+# Clarify — propose 前的结构化澄清
 
-An optional pre-step to `propose`. Triggered when the user's description contains ambiguities that would otherwise force the proposal to guess. Clarify asks a small number of high-impact questions, writes each answer into `proposal.md` under a `## Clarifications` section, then hands off to `propose`.
+`propose` 的可选前置步骤。当用户描述包含歧义、否则会迫使提案猜测时触发。Clarify 问少量高影响问题，把每个答案写入 `proposal.md` 的 `## Clarifications` 节，然后交给 `propose`。
 
-**Positioning**: Optional, before `propose`. Skip if the request is already concrete. Never a replacement for `explore` (open-ended thinking) — clarify is a focused, bounded Q&A over 8 categories.
+**定位**：可选，在 `propose` 之前。请求已具体时跳过。绝不替代 `explore`（开放式思考）—— clarify 是对 8 个分类的有界问答。
 
-**Input**: A user description of the change they want. May be invoked explicitly as `/specmark clarify <name>` or suggested by `propose` when it detects ambiguity.
+**输入**：用户对想做的变更的描述。可显式调用 `/specmark clarify <name>`，或由 `propose` 检测到歧义时建议触发。
 
 **Steps**
 
-1. **Scan the description across 8 categories**
+1. **跨 8 个分类扫描描述**
 
-   Walk the user's description against the 8-category coverage scan. For each category, decide: *covered*, *ambiguous*, or *missing*. Only categories marked *ambiguous* or *missing* are eligible to produce a question.
+   把用户描述对到 8 类覆盖扫描上。对每个分类判断：*已覆盖* / *有歧义* / *缺失*。只有标记为 *有歧义* 或 *缺失* 的分类才可能产出问题。
 
-   | Category           | What it asks                                                      |
-   | ------------------ | ----------------------------------------------------------------- |
-   | Functional Scope   | What's in vs. out of scope; explicit non-goals                    |
-   | Domain             | Domain-specific rules, entities, invariants                       |
-   | UX                 | User-facing flows, error states, feedback                         |
-   | NFR                | Performance, availability, durability, security, accessibility    |
-   | Integration        | Upstream/downstream systems, contracts, data ownership            |
-   | Edge Cases         | Empty input, concurrent access, partial failure, scale ceilings   |
-   | Constraints        | Hard constraints: deadline, budget, tech stack, compliance        |
-   | Terminology        | Terms whose meaning differs by stakeholder (e.g., "user", "order")|
+   | 分类              | 问什么                                                       |
+   | ----------------- | ------------------------------------------------------------ |
+   | Functional Scope  | 什么在/出范围；显式 non-goals                                |
+   | Domain            | 领域特定规则、实体、不变量                                   |
+   | UX                | 用户侧流程、错误状态、反馈                                   |
+   | NFR               | 性能、可用性、耐久性、安全、无障碍                           |
+   | Integration       | 上游/下游系统、契约、数据归属                                |
+   | Edge Cases        | 空输入、并发访问、部分失败、规模上限                         |
+   | Constraints       | 硬约束：截止日期、预算、技术栈、合规                         |
+   | Terminology       | 含义因干系人而异的术语（如 "user"、"order"）                 |
 
-2. **Select at most 5 high-impact questions**
+2. **选至多 5 个高影响问题**
 
-   - Rank ambiguous/missing categories by impact (a wrong guess blocks implementation → high; a wrong guess is cosmetic → low).
-   - Cap at **5 questions**. If more categories remain, fall back to reasonable defaults (see step 4) and note them in the proposal.
-   - Each question is either **short-answer** or **multiple-choice**. For multiple-choice, list 2-4 concrete options plus an "other" escape hatch. Never ask open-ended essay questions.
+   - 按影响排序有歧义/缺失的分类（猜错会阻塞实施 → 高；猜错是装饰性 → 低）。
+   - **上限 5 个问题**。若仍有更多分类，回落到合理默认（见步骤 4）并在提案中注明。
+   - 每个问题要么是**简答题**要么是**选择题**。选择题列 2-4 个具体选项加一个"其他"逃生口。绝不问开放式论述题。
 
-3. **Ask questions one batch via AskUserQuestion tool**
+3. **通过 AskUserQuestion 工具一次批量提问**
 
-   Batch the ≤5 questions in a single AskUserQuestion call so the user can answer in one pass. Do not interrogate question-by-question.
+   **🔴 CHECKPOINT · 🛑 STOP：批量提问前确认每个问题都满足"猜错会阻塞实施"标准；装饰性歧义用默认值即可，不要塞满 5 个名额。**
 
-4. **Apply reasonable defaults silently for non-asked categories**
+   把 ≤5 个问题放在单个 AskUserQuestion 调用里，让用户一次答完。不要逐个审问。
 
-   Defaults are NOT flagged as assumptions in the proposal — they are the industry baseline. Only deviate when the user explicitly overrides.
+4. **对未问的分类静默应用合理默认**
 
-   | Category         | Default                                                   |
-   | ---------------- | --------------------------------------------------------- |
-   | Data retention   | Industry standard for the domain (e.g., 90-day audit log) |
-   | Performance      | Web: p95 < 200ms / mobile: p95 < 500ms                    |
-   | Availability     | Single-region, business-hours SLO                         |
-   | Accessibility    | WCAG 2.1 AA                                               |
-   | Logging          | Structured logs, no PII                                   |
-   | Error reporting  | Sentry-class: errors + stack, no user data                |
+   默认值不在提案中标记为假设 —— 它们是行业基线。仅当用户显式覆盖时才偏离。
 
-5. **Write each answer into proposal.md as it arrives**
+   | 分类             | 默认                                                     |
+   | ---------------- | -------------------------------------------------------- |
+   | Data retention   | 领域行业标准（如 90 天审计日志）                         |
+   | Performance      | Web：p95 < 200ms / 移动：p95 < 500ms                     |
+   | Availability     | 单区域、工作时间 SLO                                     |
+   | Accessibility    | WCAG 2.1 AA                                              |
+   | Logging          | 结构化日志，无 PII                                       |
+   | Error reporting  | Sentry 级：错误 + 栈，无用户数据                         |
 
-   After the user answers, append to `specmark/changes/<name>/proposal.md`:
+5. **每个答案到达时写入 proposal.md**
+
+   用户回答后，追加到 `specmark/changes/<name>/proposal.md`：
 
    ```markdown
    ## Clarifications
 
-   - **[Functional Scope]** Q: <question text>
-     A: <user answer, verbatim or lightly paraphrased>
-   - **[NFR]** Q: <question text>
-     A: <user answer>
+   - **[Functional Scope]** Q: <问题文本>
+     A: <用户回答，原样或轻度改写>
+   - **[NFR]** Q: <问题文本>
+     A: <用户回答>
    ```
 
-   Write incrementally — one entry per answered question — not as a single batch at the end. If `proposal.md` does not yet exist, create it with just the `## Clarifications` section; `propose` will fill in the rest.
+   增量写入 —— 每个已答问题一条 —— 不是最后批量。如果 `proposal.md` 尚不存在，仅用 `## Clarifications` 节创建它；`propose` 会填充其余。
 
-6. **Hand off to propose**
+6. **交给 propose**
 
-   Once all answers are recorded, prompt: "Clarifications captured. Run `/specmark propose <name>` to generate the full proposal."
+   所有答案记录后，提示："澄清已捕获。运行 `/specmark propose <name>` 生成完整提案。"
 
-**Output**
+**输出**
 
 ```
-## Clarification Complete
+## 澄清完成
 
-**Change:** <name>
-**Questions asked:** N/5
-**Defaults applied:** <list of categories that used defaults>
+**变更：** <name>
+**已问问题：** N/5
+**应用默认值的分类：** <列出用了默认的分类>
 
-Captured in `proposal.md` → `## Clarifications`.
-Next: `/specmark propose <name>`
+已捕获到 `proposal.md` → `## Clarifications`。
+下一步：`/specmark propose <name>`
 ```
 
 **Guardrails**
 
-- **Max 5 questions** — hard cap. If you find a 6th, it must be a default.
-- **No essay questions** — short-answer or multiple-choice only.
-- **Defaults are silent** — do not surface them as "assumptions needing confirmation"; that defeats the purpose.
-- **Read-only on existing artifacts** except appending to `proposal.md`'s `## Clarifications` section. Do not touch design.md or tasks.md.
-- **Skip entirely if the request is concrete** — clarify is optional, not mandatory. If 0 categories are ambiguous/missing, announce "No clarification needed" and suggest `/specmark propose` directly.
-- **Never block propose** — if the user declines to answer, proceed to propose with defaults; do not stall.
+- **至多 5 个问题** —— 硬上限。如果发现第 6 个，它必须是默认值。
+- **不问论述题** —— 仅简答或选择。
+- **默认值是静默的** —— 不要把它们作为"需确认的假设"浮现；那会破坏目的。
+- **对现有产物只读**，除了追加到 `proposal.md` 的 `## Clarifications` 节。不碰 design.md 或 tasks.md。
+- **请求具体时整个跳过** —— clarify 是可选的，非强制。如果 0 个分类有歧义/缺失，宣布"无需澄清"并直接建议 `/specmark propose`。
+- **绝不阻塞 propose** —— 如果用户拒绝回答，用默认值继续 propose；不停滞。
 
 **Fluid Workflow Integration**
 
-- May be invoked anytime before `propose`, including after `explore`.
-- If `propose` is already in progress and hits ambiguity mid-generation, it may delegate back to `clarify` for one targeted question, then resume.
-- Clarify does not consume `explore`'s role: explore is open-ended thinking; clarify is bounded Q&A over the 8 categories.
+- 可在 `propose` 前任何时候调用，包括 `explore` 之后。
+- 如果 `propose` 已在进行中且中途遇歧义，可委托回 `clarify` 问一个针对性问题，然后恢复。
+- Clarify 不消耗 `explore` 的角色：explore 是开放式思考；clarify 是 8 类有界问答。

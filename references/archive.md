@@ -1,107 +1,113 @@
-# Archive — Archive a completed change
+# Archive — 归档已完成的变更
 
-Archive a completed change in the specmark workflow.
+在 specmark 工作流中归档已完成的变更。
 
-**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**输入**：可选指定变更名。若省略，检查能否从对话上下文推断。若模糊或歧义，**必须**提示用户选择可用变更。
 
 **Steps**
 
-1. **If no change name provided, prompt for selection**
+1. **若未提供变更名，提示选择**
 
-   Use the **Glob tool** to list `specmark/changes/*/` directories. Use the **AskUserQuestion tool** to let the user select.
+   **🔴 CHECKPOINT · 🛑 STOP：列出活动变更后让用户显式选择，不要自动选；归档是不可逆操作，误归档需手动恢复。**
 
-   Show only active changes (not already archived).
-   Include the schema used for each change if available.
+   用 **Glob 工具**列 `specmark/changes/*/` 目录。用 **AskUserQuestion 工具**让用户选。
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   仅显示活动变更（未已归档）。
+   若可用，显示每个变更所用 schema。
 
-2. **Check artifact completion status**
+   **重要**：不要猜测或自动选变更。总让用户选。
 
-   Read `specmark/changes/<name>/tasks.md` checkbox state (`- [ ]` incomplete / `- [x]` complete) to check artifact completion.
+2. **检查产物完成状态**
 
-   This tells you:
-   - `schemaName`: The workflow being used
-   - `artifacts`: List of artifacts with their status (`done` or other)
+   读 `specmark/changes/<name>/tasks.md` 复选框状态（`- [ ]` 未完成 / `- [x]` 完成）检查产物完成度。
 
-   **If any artifacts are not `done`:**
-   - Display warning listing incomplete artifacts
-   - Use **AskUserQuestion tool** to confirm user wants to proceed
-   - Proceed if user confirms
+   这告诉你：
+   - `schemaName`：使用的工作流
+   - `artifacts`：产物列表及其状态（`done` 或其他）
 
-3. **Check task completion status**
+   **若任一产物非 `done`：**
+   - 显示警告列出未完成产物
+   - **🔴 CHECKPOINT · 🛑 STOP：用 AskUserQuestion 确认用户是否要带未完成产物继续归档；默认建议先完成，不静默归档。**
+   - 用 **AskUserQuestion 工具**确认用户想继续
+   - 用户确认后继续
 
-   Read the tasks file (typically `tasks.md`) to check for incomplete tasks.
+3. **检查任务完成状态**
 
-   Count tasks marked with `- [ ]` (incomplete) vs `- [x]` (complete).
+   读任务文件（通常 `tasks.md`）检查未完成任务。
 
-   **If incomplete tasks found:**
-   - Display warning showing count of incomplete tasks
-   - Use **AskUserQuestion tool** to confirm user wants to proceed
-   - Proceed if user confirms
+   计数 `- [ ]`（未完成）vs `- [x]`（完成）任务。
 
-   **If no tasks file exists:** Proceed without task-related warning.
+   **若发现未完成任务：**
+   - 显示警告显示未完成任务数
+   - **🔴 CHECKPOINT · 🛑 STOP：带未完成任务归档会让 spec 与代码永久脱钩；用 AskUserQuestion 显式确认，并在归档摘要中记录跳过数量。**
+   - 用 **AskUserQuestion 工具**确认用户想继续
+   - 用户确认后继续
 
-4. **Assess delta spec sync state**
+   **若无任务文件：** 不带任务相关警告继续。
 
-   Check for delta specs at `specmark/changes/<name>/specs/`. If none exist, proceed without sync prompt.
+4. **评估 delta spec 同步状态**
 
-   **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at `specmark/specs/<capability>/spec.md`
-   - Determine what changes would be applied (adds, modifications, removals, renames)
-   - Show a combined summary before prompting
+   检查 `specmark/changes/<name>/specs/` 处的 delta spec。若无，不带同步提示继续。
 
-   **Prompt options:**
-   - If changes needed: "Sync now (recommended)", "Archive without syncing"
-   - If already synced: "Archive now", "Sync anyway", "Cancel"
+   **若 delta spec 存在：**
+   - 把每个 delta spec 与 `specmark/specs/<capability>/spec.md` 处对应主 spec 对比
+   - 确定会应用什么变更（增、改、删、重命名）
+   - 提示前显示合并摘要
 
-   If user chooses sync, use the Task tool to spawn an agent (subagent_type: "general-purpose") that syncs the delta specs into the main specs at `specmark/specs/<capability>/spec.md` (agent-driven: apply the analyzed delta — adds, modifications, removals, renames — to the corresponding main spec files). Pass the analyzed delta spec summary in the prompt. Proceed to archive regardless of choice.
+   **提示选项：**
+   - 若需变更："立即同步（推荐）"、"不同步直接归档"
+   - 若已同步："立即归档"、"仍同步"、"取消"
 
-5. **Perform the archive**
+   若用户选同步，启动子 agent 同步 delta spec 到 `specmark/specs/<capability>/spec.md`（用当前 runtime 的子 agent 机制，把已分析的 delta —— 增、改、删、重命名 —— 应用到对应主 spec 文件；agent 驱动）。把已分析的 delta spec 摘要传入 prompt。不论选什么都继续归档。
 
-   Create the archive directory if it doesn't exist:
+5. **执行归档**
+
+   若归档目录不存在则创建：
 
    ```bash
    mkdir -p docs/changes/archive
    ```
 
-   Generate target name using current date: `YYYY-MM-DD-<change-name>`
+   **关于路径：** 归档目录 `docs/changes/archive/` 与活动目录 `specmark/changes/` 分离 —— 便于 git ignore 活动 `specmark/changes/` 内容同时保留历史归档可追溯。活动 changes 是工作区产物（可丢弃、可重建），归档是长期历史记录（需版本控制保留）。
 
-   **Check if target already exists:**
-   - If yes: Fail with error, suggest renaming existing archive or using different date
-   - If no: Move the change directory to archive
+   用当前日期生成目标名：`YYYY-MM-DD-<change-name>`
+
+   **检查目标是否已存在：**
+   - 是：报错失败，建议重命名已有归档或用不同日期
+   - 否：把变更目录移到归档
 
    ```bash
    mv specmark/changes/<name> docs/changes/archive/YYYY-MM-DD-<name>
    ```
 
-6. **Display summary**
+6. **显示摘要**
 
-   Show archive completion summary including:
-   - Change name
-   - Schema that was used
-   - Archive location
-   - Whether specs were synced (if applicable)
-   - Note about any warnings (incomplete artifacts/tasks)
+   显示归档完成摘要，含：
+   - 变更名
+   - 使用 schema
+   - 归档位置
+   - spec 是否已同步（若适用）
+   - 任何警告备注（未完成产物/任务）
 
-**Output On Success**
+**成功时输出**
 
 ```
-## Archive Complete
+## 归档完成
 
-**Change:** <change-name>
-**Schema:** <schema-name>
-**Archived to:** docs/changes/archive/YYYY-MM-DD-<name>/
-**Specs:** ✓ Synced to main specs (or "No delta specs" or "Sync skipped")
+**变更：** <change-name>
+**Schema：** <schema-name>
+**归档到：** docs/changes/archive/YYYY-MM-DD-<name>/
+**Specs：** ✓ 已同步到主 specs（或 "无 delta spec" 或 "同步已跳过"）
 
-All artifacts complete. All tasks complete.
+所有产物完成。所有任务完成。
 ```
 
 **Guardrails**
 
-- Always prompt for change selection if not provided
-- Read `specmark/changes/<name>/tasks.md` checkbox state for completion checking
-- Don't block archive on warnings - just inform and confirm
-- The change directory moves wholesale to archive; no separate config file is involved
-- Show clear summary of what happened
-- If sync is requested, drive it agent-side: apply the delta spec changes to the main specs
-- If delta specs exist, always run the sync assessment and show the combined summary before prompting
+- 未提供时总是提示选变更
+- 读 `specmark/changes/<name>/tasks.md` 复选框状态做完成检查
+- 不在警告上阻塞归档 —— 仅告知并确认
+- 变更目录整体移到归档；无单独配置文件
+- 显示清晰的发生了什么摘要
+- 若请求同步，agent 侧驱动：把 delta spec 变更应用到主 specs
+- 若 delta spec 存在，总是跑同步评估并在提示前显示合并摘要

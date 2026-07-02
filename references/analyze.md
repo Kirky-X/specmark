@@ -1,80 +1,80 @@
-# Analyze — Cross-artifact consistency check (read-only quality gate)
+# Analyze — 跨产物一致性检查（只读质量门）
 
-An optional quality gate between `propose` and `apply`. Reads `proposal.md`, `design.md`, and `tasks.md` for a change, detects consistency problems across them, and emits a Markdown report. **Read-only**: analyze never modifies any artifact.
+`propose` 与 `apply` 之间的可选质量门。读取某变更的 `proposal.md`、`design.md`、`tasks.md`，检测跨产物一致性问题，输出 Markdown 报告。**只读**：analyze 绝不修改任何产物。
 
-**Positioning**: Optional, after `propose` and before `apply`. Use when the change is non-trivial (e.g., touches >1 module, multi-step tasks, or external integration) and a second look is worth the cost. Skip for trivial changes.
+**定位**：可选，在 `propose` 之后、`apply` 之前。变更非平凡时使用（如触及 >1 个模块、多步任务、外部集成），值得二次审视。平凡变更跳过。
 
-**Input**: Optionally specify a change name. If omitted, infer from context or use the Glob tool to list `specmark/changes/*/` directories (subdirectory names are change names).
+**输入**：可选指定变更名。若省略，从上下文推断或用 Glob 工具列 `specmark/changes/*/` 目录（子目录名即变更名）。
 
 **Steps**
 
-1. **Locate the change and its artifacts**
+1. **定位变更及其产物**
 
-   Read `specmark/changes/<name>/tasks.md`'s checkbox state (`- [ ]` pending / `- [x]` done) to confirm `proposal.md`, `design.md`, `tasks.md` all exist. If any is missing, emit a CRITICAL finding (see detection #6) and continue with what exists.
+   读 `specmark/changes/<name>/tasks.md` 的复选框状态（`- [ ]` 待办 / `- [x]` 完成）确认 `proposal.md`、`design.md`、`tasks.md` 都存在。若任一缺失，输出 CRITICAL 发现（见检测 #6）并用现有内容继续。
 
-2. **Read all three artifacts in full**
+2. **完整读取全部三份产物**
 
-   Read `proposal.md`, `design.md`, `tasks.md` end-to-end. Do not skim — cross-artifact inconsistencies only surface when you hold all three in mind.
+   端到端读 `proposal.md`、`design.md`、`tasks.md`。不要略读 —— 跨产物不一致只在三者并持时浮现。
 
-3. **Run the 6 detection passes**
+3. **跑 6 个检测 pass**
 
-   For each pass, scan all three artifacts and record findings. Each finding has: detection type, severity, location, description.
+   每个 pass 扫描全部三份产物并记录发现。每个发现含：检测类型、严重度、位置、描述。
 
-   | # | Detection        | What it catches                                                       |
-   | - | ---------------- | --------------------------------------------------------------------- |
-   | 1 | Duplication      | Same requirement/task stated in two places with drift between them    |
-   | 2 | Ambiguity        | Term or behavior with multiple plausible interpretations             |
-   | 3 | Underdetermined  | Task that cannot be implemented without further decisions            |
-   | 4 | Coverage gap     | Requirement in proposal/design with no corresponding task             |
-   | 5 | Inconsistency    | proposal vs design vs tasks contradict each other on a concrete point |
-   | 6 | Missing artifact | Required artifact absent (e.g., no tasks.md, no design.md)            |
+   | # | 检测             | 捕获什么                                                 |
+   | - | ---------------- | -------------------------------------------------------- |
+   | 1 | Duplication      | 同一需求/任务在两处陈述且有漂移                          |
+   | 2 | Ambiguity        | 术语或行为有多重合理解释                                 |
+   | 3 | Underdetermined  | 任务无法在无进一步决策下实施                             |
+   | 4 | Coverage gap     | proposal/design 中有需求但无对应任务                     |
+   | 5 | Inconsistency    | proposal vs design vs tasks 在具体点上互相矛盾           |
+   | 6 | Missing artifact | 必需产物缺失（如无 tasks.md、无 design.md）              |
 
-4. **Assign severity to each finding**
+4. **为每个发现分配严重度**
 
-   | Severity  | Meaning                                                                   |
-   | --------- | ------------------------------------------------------------------------- |
-   | CRITICAL  | Blocks apply — contradiction or missing artifact                          |
-   | HIGH      | Will cause rework during apply — coverage gap on a core requirement       |
-   | MEDIUM    | Ambiguity or underdetermined task; resolvable during apply with a note    |
-   | LOW       | Cosmetic drift, duplicate wording; fix is optional                        |
+   | 严重度    | 含义                                                                 |
+   | --------- | -------------------------------------------------------------------- |
+   | CRITICAL  | 阻塞 apply —— 矛盾或缺失产物                                         |
+   | HIGH      | 会在 apply 中导致返工 —— 核心需求覆盖缺口                            |
+   | MEDIUM    | 歧义或规格不足的任务；apply 中可附注解决                             |
+   | LOW       | 装饰性漂移、重复措辞；修复可选                                       |
 
-5. **Cap at 50 findings**
+5. **上限 50 个发现**
 
-   If more than 50 findings, keep the 50 highest-severity (CRITICAL → LOW) and append a final row: `... N more findings suppressed (run analyze again after fixing CRITICAL/HIGH)`.
+   若超过 50 个，保留 50 个最高严重度（CRITICAL → LOW）并追加末行：`... 还有 N 个发现已抑制（修复 CRITICAL/HIGH 后重跑 analyze）`。
 
-6. **Emit the report — read-only, no file writes**
+6. **输出报告 —— 只读，不写文件**
 
-   Print the report to the conversation. Do **not** write it to disk and do **not** edit any artifact. If the user wants fixes applied, they run `propose` (to regenerate) or `converge` (post-apply).
+   把报告打印到对话。**不要**写盘，**不要**编辑任何产物。用户若想应用修复，跑 `propose`（重新生成）或 `converge`（apply 后）。
 
-**Output**
+**输出**
 
 ```
-## Analyze Report — <change-name>
+## Analyze 报告 — <change-name>
 
-**Artifacts read:** proposal.md, design.md, tasks.md
-**Findings:** N (CRITICAL: a | HIGH: b | MEDIUM: c | LOW: d)
+**已读产物：** proposal.md, design.md, tasks.md
+**发现：** N (CRITICAL: a | HIGH: b | MEDIUM: c | LOW: d)
 
-| # | Severity   | Detection        | Location              | Finding                                             |
-| - | ---------- | ---------------- | --------------------- | --------------------------------------------------- |
-| 1 | CRITICAL   | Missing artifact | —                     | tasks.md absent                                     |
-| 2 | HIGH       | Coverage gap     | proposal §2 / tasks   | "rate limiting" in proposal, no task implements it  |
-| 3 | MEDIUM     | Underdetermined  | tasks T03             | "choose a cache strategy" — no decision recorded    |
-| 4 | LOW        | Duplication      | design §1 / tasks T01 | Retry policy stated twice with different backoffs   |
+| # | 严重度    | 检测             | 位置                  | 发现                                                |
+| - | --------- | ---------------- | --------------------- | --------------------------------------------------- |
+| 1 | CRITICAL  | Missing artifact | —                     | tasks.md 缺失                                       |
+| 2 | HIGH      | Coverage gap     | proposal §2 / tasks   | proposal 有"限流"，无任务实施                       |
+| 3 | MEDIUM    | Underdetermined  | tasks T03             | "选一个缓存策略" —— 无决策记录                      |
+| 4 | LOW       | Duplication      | design §1 / tasks T01 | 重试策略陈述两次且 backoff 不同                     |
 
-**Recommendation:** Fix CRITICAL and HIGH before `/specmark apply`. MEDIUM/LOW can be resolved inline during apply.
+**建议：** `/specmark apply` 前修复 CRITICAL 与 HIGH。MEDIUM/LOW 可在 apply 中就地解决。
 ```
 
 **Guardrails**
 
-- **Read-only** — never write to, edit, or move any artifact. Analyze observes; it does not act.
-- **Max 50 findings** — cap is hard. Over-cap → keep highest severity, suppress the rest with a count.
-- **Use specmark terminology** — findings reference `proposal` / `design` / `tasks` (not "spec" / "plan" / "implementation"). Task references use the `T###` IDs from tasks.md.
-- **No false positives to pad the count** — if a category has no findings, omit it; do not invent LOW findings to fill rows.
-- **Do not gate apply** — analyze is advisory. The user may run apply with unresolved findings; analyze does not block.
-- **Re-runnable** — after propose regenerates artifacts, analyze can be re-run to confirm findings cleared.
+- **只读** —— 绝不写入、编辑或移动任何产物。Analyze 观察；不行动。
+- **上限 50 个发现** —— 硬上限。超限 → 保留最高严重度，抑制其余并计数。
+- **用 specmark 术语** —— 发现引用 `proposal` / `design` / `tasks`（不是 "spec" / "plan" / "implementation"）。任务引用用 tasks.md 的 `T###` ID。
+- **不要凑数** —— 若某类无发现，省略；不要编造 LOW 发现填行。
+- **不阻塞 apply** —— analyze 是建议性的。用户可带未解决发现跑 apply；analyze 不阻塞。
+- **可重跑** —— propose 重新生成产物后，可重跑 analyze 确认发现已清。
 
 **Fluid Workflow Integration**
 
-- May be invoked anytime after `propose` produces artifacts.
-- Most useful as a pre-apply gate, but also valid post-apply (before `converge`) to catch drift introduced during implementation.
-- Pairs with `converge`: analyze finds proposal↔tasks gaps pre-apply; converge finds tasks↔code gaps post-apply.
+- 可在 `propose` 产出产物后任何时候调用。
+- 最有用作 apply 前质量门，但 apply 后也有效（converge 前）以捕获实施中引入的漂移。
+- 与 `converge` 配对：analyze 找 apply 前的 proposal↔tasks 缺口；converge 找 apply 后的 tasks↔code 缺口。
