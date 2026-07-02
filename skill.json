@@ -1,0 +1,10 @@
+{
+  "name": "specmark",
+  "description": "Specmark 规格驱动变更工作流。探索、提案、实施、归档四阶段 spec-driven 流程。4 个子命令(explore/propose/apply/archive)，纯文档型 skill 无外部 CLI 依赖。",
+  "license": "MIT",
+  "version": "0.1.0",
+  "author": "Kirky-X",
+  "repo": "https://github.com/Kirky-X/specmark",
+  "homepage": "https://github.com/Kirky-X/specmark",
+  "tag": ["spec-driven", "proposal", "design", "tasks", "specmark", "change-management", "specification", "workflow"]
+}

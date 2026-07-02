@@ -1,0 +1,20 @@
+[
+    {
+        "id": 1,
+        "prompt": "/specmark propose add-user-login",
+        "expected": "明确子命令 → 路由到 propose：用 mkdir 创建 specmark/changes/ 目录，按依赖序生成 proposal/design/tasks 全套产物，完成后提示 /specmark apply",
+        "scenario": "happy path，最典型路由"
+    },
+    {
+        "id": 2,
+        "prompt": "/specmark",
+        "expected": "无参数 → 输出子命令路由表（propose/explore/apply/archive），请用户选择后停止，不擅自进入任一子命令",
+        "scenario": "fallback，参数缺失的处理（SKILL.md L23-25）"
+    },
+    {
+        "id": 3,
+        "prompt": "/specmark 我还没想好这个功能，先帮我梳理思路",
+        "expected": "意图是探索/思考（无明确子命令）→ 路由到 explore 子命令（只读模式，读代码但不写应用代码）",
+        "scenario": "歧义意图路由（选用指南 L31-37 映射）"
+    }
+]
