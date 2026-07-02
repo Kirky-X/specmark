@@ -1,210 +1,217 @@
-# Apply — Implement tasks from a specmark change
+# Apply — 实施某 specmark 变更的任务
 
-Implement tasks from a specmark change.
+实施某 specmark 变更的任务。
 
-**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**输入**：可选指定变更名。若省略，检查能否从对话上下文推断。若模糊或歧义，**必须**提示用户选择可用变更。
 
 **Steps**
 
-1. **Select the change**
+1. **选择变更**
 
-   If a name is provided, use it. Otherwise:
-   - Infer from conversation context if the user mentioned a change
-   - Auto-select if only one active change exists
-   - If ambiguous, use the **Glob tool** to list `specmark/changes/*/` directories and use the **AskUserQuestion tool** to let the user select
+   若提供名字，用它。否则：
+   - 用户提到某变更时从上下文推断
+   - 只有一个活动变更时自动选
+   - 若歧义，用 **Glob 工具**列 `specmark/changes/*/` 目录并用 **AskUserQuestion 工具**让用户选
 
-   Always announce: "Using change: <name>" and how to override (e.g., `/specmark apply <other>`).
+   总是宣布："使用变更：<name>" 及如何覆盖（如 `/specmark apply <other>`）。
 
-2. **Check status to understand the schema**
+2. **检查状态以理解 schema**
 
-   Read `specmark/changes/<name>/tasks.md` and inspect its checkbox state (`- [ ]` incomplete / `- [x]` complete) to understand progress.
+   读 `specmark/changes/<name>/tasks.md` 并检查复选框状态（`- [ ]` 未完成 / `- [x]` 完成）以了解进度。
 
-   This tells you:
-   - `schemaName`: The workflow being used (typically "spec-driven")
-   - Which artifact contains the tasks (typically `tasks.md` for spec-driven)
+   这告诉你：
+   - `schemaName`：使用的工作流（通常 "spec-driven"）
+   - 哪个产物含任务（spec-driven 通常 `tasks.md`）
 
-3. **Read apply context**
+3. **读取 apply 上下文**
 
-   Read the artifacts under `specmark/changes/<name>/` — `proposal.md`, `design.md`, and `tasks.md` — as context for implementation.
+   读 `specmark/changes/<name>/` 下的产物 —— `proposal.md`、`design.md`、`tasks.md` —— 作为实施上下文。
 
-   This gives you:
-   - `contextFiles`: the artifact files in the change directory (proposal/design/tasks, plus any `specs/` deltas)
-   - Progress (count `- [ ]` vs `- [x]` in `tasks.md` for total/complete/remaining)
-   - Task list with status
-   - Guidance for the current state
+   这给你：
+   - `contextFiles`：变更目录中的产物文件（proposal/design/tasks，加任何 `specs/` delta）
+   - 进度（`tasks.md` 中 `- [ ]` vs `- [x]` 计数：total/complete/remaining）
+   - 带状态的任务列表
+   - 当前状态指引
 
-   **Handle states:**
-   - If artifacts are missing (e.g., no `tasks.md`): show message, suggest using `/specmark propose` to create the missing artifacts first
-   - If all tasks already `- [x]`: congratulate, suggest archive
-   - Otherwise: proceed to implementation
+   **处理状态：**
+   - 若产物缺失（如无 `tasks.md`）：显示消息，建议先用 `/specmark propose` 创建缺失产物
+   - 若所有任务已 `- [x]`：祝贺，建议归档
+   - 否则：继续实施
 
-4. **Read context files**
+4. **读上下文文件**
 
-   Read every artifact file in the specmark change directory (`specmark/changes/<name>/`).
-   The files depend on the schema being used:
-   - **spec-driven**: proposal, specs, design, tasks
-   - Other schemas: follow the contextFiles from the specmark change directory
+   读 specmark 变更目录（`specmark/changes/<name>/`）中每个产物文件。
+   文件取决于所用 schema：
+   - **spec-driven**：proposal、specs、design、tasks
+   - 其他 schema：遵循 specmark 变更目录的 contextFiles
 
-5. **Show current progress**
+5. **显示当前进度**
 
-   Display:
-   - Schema being used
-   - Progress: "N/M tasks complete"
-   - Remaining tasks overview
-   - Guidance for the current state
+   显示：
+   - 使用 schema
+   - 进度："N/M 任务完成"
+   - 剩余任务概览
+   - 当前状态指引
 
-6. **Implement tasks (loop until done or blocked)**
+6. **实施任务（循环直到完成或阻塞）**
 
-   **Strict order — no skipping.** Work through tasks in the exact order they appear in `tasks.md`. Task N+1 may begin ONLY after task N is marked `- [x]`. Never jump ahead to a later task while an earlier one is still `- [ ]` — even if a later task looks easier, unblocks others, or seems more interesting. The sole permitted reason to leave a task `- [ ]` is a genuine blocker, and then you PAUSE (see below) — you do not skip to the next.
+   **严格顺序 —— 不跳过。** 按 `tasks.md` 中出现的精确顺序处理任务。任务 N+1 仅在任务 N 标记 `- [x]` 后才能开始。当较早任务仍 `- [ ]` 时绝不跳到更晚任务 —— 即使更晚任务看起来更易、能解锁他人、或更有趣。离开任务 `- [ ]` 的唯一允许理由是真正的阻塞，此时你 PAUSE（见下）—— 不跳过。
 
-   For each task in order:
-   - Show which task being worked on (e.g., "task 3/7: <description>")
-   - Make the code changes required
-   - Keep changes minimal and focused on that one task
-   - Mark task complete in the tasks file IMMEDIATELY: `- [ ]` → `- [x]`
-   - Only then advance to the next task in sequence
+   按顺序对每个任务：
+   - 显示正在做哪个任务（如 "任务 3/7：<描述>"）
+   - 做所需代码改动
+   - 保持改动最小且聚焦于那一项任务
+   - **立即**在任务文件中标记完成：`- [ ]` → `- [x]`
+   - 然后才前进到下一个任务
 
-   **Pause if:**
-   - Task is unclear → ask for clarification
-   - Implementation reveals a design issue → suggest updating artifacts
-   - Error or blocker encountered → report and wait for guidance
-   - User interrupts
+   **暂停条件：**
+   - 任务不清 → 请求澄清
+   - 实施暴露设计问题 → 建议更新产物
+   - 遇错误或阻塞 → 报告并等待指引
+   - 用户打断
 
-7. **On completion or pause, show status**
+7. **完成或暂停时显示状态**
 
-   Display:
-   - Tasks completed this session
-   - Overall progress: "N/M tasks complete"
-   - If all done: suggest archive
-   - If paused: explain why and wait for guidance
+   显示：
+   - 本次会话完成的任务
+   - 总体进度："N/M 任务完成"
+   - 若全部完成：建议归档
+   - 若暂停：解释原因并等待指引
 
-**Output During Implementation**
-
-```
-## Implementing: <change-name> (schema: <schema-name>)
-
-Working on task 3/7: <task description>
-[...implementation happening...]
-✓ Task complete
-
-Working on task 4/7: <task description>
-[...implementation happening...]
-✓ Task complete
-```
-
-**Output On Completion**
+**实施中输出**
 
 ```
-## Implementation Complete
+## 实施中：<change-name> (schema: <schema-name>)
 
-**Change:** <change-name>
-**Schema:** <schema-name>
-**Progress:** 7/7 tasks complete ✓
+正在做任务 3/7：<任务描述>
+[...实施中...]
+✓ 任务完成
 
-### Completed This Session
-- [x] Task 1
-- [x] Task 2
+正在做任务 4/7：<任务描述>
+[...实施中...]
+✓ 任务完成
+```
+
+**完成时输出**
+
+```
+## 实施完成
+
+**变更：** <change-name>
+**Schema：** <schema-name>
+**进度：** 7/7 任务完成 ✓
+
+### 本次会话完成
+- [x] 任务 1
+- [x] 任务 2
 ...
 
-All tasks complete! Ready to archive this change.
+所有任务完成！可归档此变更。
 ```
 
-**Output On Pause (Issue Encountered)**
+**暂停时输出（遇问题）**
 
 ```
-## Implementation Paused
+## 实施暂停
 
-**Change:** <change-name>
-**Schema:** <schema-name>
-**Progress:** 4/7 tasks complete
+**变更：** <change-name>
+**Schema：** <schema-name>
+**进度：** 4/7 任务完成
 
-### Issue Encountered
-<description of the issue>
+### 遇到问题
+<问题描述>
 
-**Options:**
-1. <option 1>
-2. <option 2>
-3. Other approach
+**选项：**
+1. <选项 1>
+2. <选项 2>
+3. 其他方法
 
-What would you like to do?
+你想怎么做？
 ```
 
 **Guardrails**
 
-- **No skipping tasks** — execute in `tasks.md` order; a task may start only after the previous one is `- [x]`. If a later task looks tempting or seems to unblock others, finish the current one first. Leaving a task incomplete to move on is never allowed — only a genuine blocker pauses you (per below)
-- Keep going through tasks until done or blocked
-- Always read context files before starting (from the apply instructions output)
-- If task is ambiguous, pause and ask before implementing
-- If implementation reveals issues, pause and suggest artifact updates
-- Keep code changes minimal and scoped to each task
-- Update task checkbox immediately after completing each task
-- Pause on errors, blockers, or unclear requirements - don't guess
-- Use contextFiles from the specmark change directory, don't assume specific file names
+- **不跳过任务** —— 按 `tasks.md` 顺序执行；任务仅在前一个 `- [x]` 后才能开始。若更晚任务看起来诱人或似能解锁他人，先完成当前。留任务未完成去前进绝不允许 —— 只有真正阻塞才暂停（见下）
+- 持续推进任务直到完成或阻塞
+- 开始前总读上下文文件（来自 apply 指令输出）
+- 若任务歧义，实施前暂停并问
+- 若实施暴露问题，暂停并建议产物更新
+- 保持代码改动最小且限定于每项任务
+- 完成每个任务后立即更新复选框
+- 遇错误、阻塞或不清需求时暂停 —— 不猜
+- 用 specmark 变更目录的 contextFiles，不假设特定文件名
 
 ---
 
-## Pre-Implementation Critical Review
+## 实施前关键审查
 
-After step 5 (show current progress) and **before** step 6 (the implement-tasks loop), perform a critical review of `tasks.md`. This is a 30-second sanity check that catches problems cheaply, before any code is written.
+**🔴 CHECKPOINT · 🛑 STOP：进入实施循环（步骤 6）前必须完成本节 4 项检查。任一项失败则停在 apply、不进入循环，先建议修复。这是 30 秒 sanity check，在写任何代码前廉价地捕获问题。**
 
-**Checks (all must pass before entering the loop):**
+在步骤 5（显示当前进度）之后、步骤 6（实施任务循环）**之前**，对 `tasks.md` 做关键审查。
 
-1. **Placeholder scan** — grep `tasks.md` for the forbidden phrases defined in `propose.md` §2 (TBD / TODO / FIXME / "add appropriate error handling" / "handle edge cases" / "similar to Task N" / "write tests for the above" / "as needed" / "if relevant" / "where appropriate"). Zero matches required.
-2. **File path presence** — every task description includes at least one file path. Tasks without a path are under-specified and will cause mid-implementation stalls.
-3. **Hidden dependency check** — for each task N, verify that whatever task N+1 needs is actually produced by task N (or earlier). Sequential execution means a missing dependency blocks the whole chain.
-4. **NEEDS CLARIFICATION scan** — read `proposal.md` for a `## NEEDS CLARIFICATION` section. If any item affects an early task, surface it to the user **now**, before starting, rather than stalling mid-implementation.
+**检查（进入循环前全部必须通过）：**
 
-**On failure:**
+1. **占位符扫描** —— grep `tasks.md` 找 `propose.md` §2 定义的禁用短语（TBD / TODO / FIXME / "add appropriate error handling" / "handle edge cases" / "similar to Task N" / "write tests for the above" / "as needed" / "if relevant" / "where appropriate"）。要求零匹配。
+2. **文件路径存在性** —— 每个任务描述含至少一个文件路径。无路径的任务规格不足，会导致实施中途停滞。
+3. **隐藏依赖检查** —— 对每个任务 N，验证任务 N+1 所需确实由任务 N（或更早）产出。顺序执行意味着缺失依赖阻塞整条链。
+4. **NEEDS CLARIFICATION 扫描** —— 读 `proposal.md` 找 `## NEEDS CLARIFICATION` 节。若任一项影响早期任务，**现在**暴露给用户，在开始前，而非实施中途停滞。
 
-- If placeholders or missing paths are found → suggest running `/specmark propose` to fix `tasks.md` before apply proceeds. Do not silently fix tasks yourself; that's propose's responsibility.
-- If a hidden dependency is found → suggest reordering or splitting tasks via `/specmark propose`.
-- If a NEEDS CLARIFICATION item blocks → prompt the user to resolve it (or accept the recorded default) before entering the loop.
+**失败时：**
 
-**On success:** announce "Critical review passed" and proceed to step 6.
+- 若发现占位符或缺失路径 → 建议 `/specmark propose` 修 `tasks.md` 后再 apply。不静默自己修任务；那是 propose 的职责。
+- 若发现隐藏依赖 → 建议通过 `/specmark propose` 重排或拆分任务。
+- 若 NEEDS CLARIFICATION 项阻塞 → 提示用户解决（或接受记录的默认值）后进入循环。
 
-## Git Worktree Isolation (recommended for non-trivial changes)
+**成功时：** 宣布"关键审查通过"并前进到步骤 6。
 
-For changes touching more than ~3 files or spanning multiple sessions, consider isolating implementation in a git worktree before step 6:
+## Git Worktree 隔离（非平凡变更推荐）
+
+对触及 **≥3 个文件**或跨多次会话的变更，考虑在步骤 6 前用 git worktree 隔离实施：
 
 ```bash
 git worktree add ../<change-name>-worktree
 cd ../<change-name>-worktree
 ```
 
-**Why:**
-- Keeps the main working tree clean for parallel work on other changes
-- Easy to discard the whole attempt if implementation goes wrong (`git worktree remove`)
-- The `tasks.md` checkboxes and any in-progress commits stay isolated from other branches
-- Pairs naturally with the TDD commit-per-task discipline from `propose.md` §3
+**为什么：**
+- 保持主工作树干净，便于并行做其他变更
+- 实施走偏时易整体丢弃（`git worktree remove`）
+- `tasks.md` 复选框与任何进行中 commit 与其他分支隔离
+- 自然配对 `propose.md` §3 的 TDD 每任务一 commit 纪律
 
-**When to skip:** trivial single-file changes, or when the user is already on a dedicated branch. Don't force worktree creation if it adds friction without value. Suggest it; don't require it.
+**跳过条件（明确判定）：** 满足以下任一即跳过 worktree 创建：
+- 单文件改动
+- 用户已在 dedicated branch 上工作（用 `git branch --show-current` 检查；分支名非 `main`/`master` 即视为 dedicated）
+- 变更预计单次会话内完成
 
-## Finishing: Converge Then Archive
+满足跳过条件时不创建 worktree，直接在当前分支实施。
 
-When step 7 reports "all done" (every task marked `- [x]`), **do not** jump straight to archive. The completion prompt is enhanced to a two-step hand-off:
+## 完成：先 Converge 再 Archive
 
-1. **First prompt:** "All tasks complete. Run `/specmark converge` to reconcile tasks against the implemented code before archiving."
-2. **After converge** closes any appended convergence tasks (re-running apply to flip those to `- [x]`), **then** prompt: "Run `/specmark archive` to archive this change."
+当步骤 7 报告"全部完成"（每个任务 `- [x]`），**不要**直接跳到 archive。完成提示增强为两步交接：
 
-**Why converge before archive:** archive moves the change directory into `archive/` and is hard to undo cleanly. Converge catches the common failure mode where the implementation drifted from the spec (missing edge cases, partial coverage, silent contradictions) while the drift is still cheap to fix. Skipping converge means archiving a change whose code doesn't fully match its spec — which corrupts the spec as a source of truth for future changes.
+1. **第一提示：** "所有任务完成。运行 `/specmark converge` 在归档前把任务与已实施代码对账。"
+2. **converge** 关闭任何追加的收敛任务后（重跑 apply 把它们翻为 `- [x]`），**再**提示："运行 `/specmark archive` 归档此变更。"
 
-**Updated completion output:**
+**为什么 converge 先于 archive：** archive 把变更目录移入 `archive/` 且难以干净撤销。Converge 在漂移还廉价可修时捕获常见失败模式（实施偏离 spec：缺失边界 case、部分覆盖、静默矛盾）。跳过 converge 意味着归档一个代码未完全匹配 spec 的变更 —— 这会损坏 spec 作为未来变更真相来源的地位。
+
+**更新后的完成输出：**
 
 ```
-## Implementation Complete
+## 实施完成
 
-**Change:** <change-name>
-**Schema:** <schema-name>
-**Progress:** N/N tasks complete ✓
+**变更：** <change-name>
+**Schema：** <schema-name>
+**进度：** N/N 任务完成 ✓
 
-All tasks complete. Next steps:
-1. `/specmark converge` — reconcile tasks vs. code (recommended)
-2. `/specmark archive` — archive this change (run after converge)
+所有任务完成。下一步：
+1. `/specmark converge` —— 对账任务 vs 代码（推荐）
+2. `/specmark archive` —— 归档此变更（converge 后运行）
 ```
 
 **Fluid Workflow Integration**
 
-This subcommand supports the "actions on a change" model:
+本子命令支持"对变更操作"模型：
 
-- **Can be invoked anytime**: Before all artifacts are done (if tasks exist), after partial implementation, interleaved with other actions
-- **Allows artifact updates**: If implementation reveals design issues, suggest updating artifacts - not phase-locked, work fluidly
+- **可随时调用**：产物未全完成前（若任务存在）、部分实施后、与其他操作交错
+- **允许产物更新**：若实施暴露设计问题，建议更新产物 —— 非阶段锁定，灵活工作

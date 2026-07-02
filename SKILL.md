@@ -33,6 +33,8 @@ license: MIT
 
 ## 执行流程
 
+**🔴 CHECKPOINT · 🛑 STOP：解析 `$ARGUMENTS[0]` 后、进入子命令流程前，先确认子命令选择正确（尤其自然语言意图需用 AskUserQuestion 工具与用户确认），避免误路由后回滚成本。**
+
 1. 解析 `$ARGUMENTS[0]`：
    - 合法值（`explore`/`clarify`/`propose`/`analyze`/`apply`/`converge`/`archive`）→ 进入步骤 2
    - 缺失或拼写错误（如 `/specmark`、`/specmark foobar`）→ 输出上方路由表，请用户选择后停止
@@ -56,17 +58,30 @@ license: MIT
 ## 阶段协作链路
 
 ```
-explore（探索）→ clarify（澄清）→ propose（生成提案）→ apply（实施）→ converge（收敛）→ archive（归档）
+explore（探索）→ clarify（澄清）→ propose（生成提案）→ analyze（一致性分析）→ apply（实施）→ converge（收敛）→ archive（归档）
 ```
 
 - `explore` 是只读思考模式，可随时进入；想清楚后用 `clarify`（可选）或 `propose` 落地为变更。
 - `clarify` 是 propose 前的可选澄清步骤；需求明确时直接跳过，进入 `propose`。
-- `propose` 产出全套产物后，提示运行 `/specmark apply`（可选先 `/specmark analyze` 做质量门）。
+- `propose` 产出全套产物后，提示运行 `/specmark analyze`（可选质量门）或 `/specmark apply`。
 - `analyze` 是 propose 后 apply 前的可选只读质量门；不阻塞 apply。
 - `apply` 全部任务完成后，提示先 `/specmark converge` 再 `/specmark archive`。
 - `converge` 是 apply 后 archive 前的可选收敛步骤；append-only 追加遗漏任务，再回到 `apply` 关闭。
-- 六阶段非强制线性，clarify/analyze/converge 均可按需跳过（见各 references 的 Fluid Workflow Integration）。
+- 七阶段非强制线性，clarify/analyze/converge 均可按需跳过（见各 references 的 Fluid Workflow Integration）。
 
 ## 维护说明
 
 本技能原为 4 个独立顶层技能（`specmark-propose` / `specmark-explore` / `specmark-apply-change` / `specmark-archive-change`），现已扁平合并：各原 `SKILL.md` 去除 frontmatter 后成为 `references/{propose,explore,apply,archive}.md`；跨技能交叉引用已改写为本技能子命令（`/specmark apply`、`/specmark propose`）。技能发现机制只识别 `specmark/SKILL.md`，不独立获取 `references/` 内的流程文档。
+
+## 不要做什么（反例黑名单）
+
+下列反模式会破坏 spec-driven 工作流的可追溯性与一致性，执行任何子命令前对照检查。
+
+| # | 反模式                                                     | 为什么不要做                                                       | 正确做法                                                              |
+| - | ---------------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| 1 | 在 `explore` 模式写应用代码                                | explore 是只读思考模式；写代码会让"探索"变成"实施"，破坏阶段边界    | 想清楚后退出 explore，用 `propose` 落地变更，再 `apply` 实施          |
+| 2 | 跳过 `propose` 直接 `apply`                                | 没有 proposal/design/tasks 就实施，spec 失去追溯依据，converge 失效 | 先 `/specmark propose` 生成全套产物，再 `/specmark apply`             |
+| 3 | 修改已归档的 change（`docs/changes/archive/` 下文件）      | 归档是只读历史；改动归档会让 spec 与历史代码脱钩                    | 新建 change 处理后续变更；归档内容只读                                |
+| 4 | `apply` 跳过未完成任务直接做下一个                         | 顺序执行是硬约束；跳过会让下游任务依赖缺失                          | 严格按 `tasks.md` 顺序；遇阻则 PAUSE，不跳过                          |
+| 5 | `converge` 改写已有任务而非 append                         | append-only 是硬约束；改写会让历史任务不可追溯                      | 仅在 `## Phase N: Convergence` 段追加新任务                           |
+| 6 | 在 `tasks.md` 留 `TBD` / `TODO` / "as needed" 等占位符     | 占位符让 apply 中途停滞；任务必须可执行                             | 拆为具体子任务，或写到 `proposal.md` 的 `## NEEDS CLARIFICATION`      |

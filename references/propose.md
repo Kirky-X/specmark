@@ -1,166 +1,234 @@
-# Propose — Create a change with all artifacts in one step
+# Propose — 一步创建变更并生成全套产物
 
-Propose a new change - create the change and generate all artifacts in one step.
+提出新变更 —— 创建 change 并一步生成所有产物。
 
-I'll create a change with artifacts:
+我会创建一个变更，包含产物：
 
-- proposal.md (what & why)
-- design.md (how)
-- tasks.md (implementation steps)
+- proposal.md（做什么 & 为什么）
+- design.md（怎么做）
+- tasks.md（实施步骤）
 
-When ready to implement, run `/specmark apply`
+准备好实施时，运行 `/specmark apply`。
 
 ---
 
-**Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build.
+**输入**：用户的请求应包含一个变更名（kebab-case）或对他们想构建什么的描述。
 
 **Steps**
 
-1. **If no clear input provided, ask what they want to build**
+1. **如果未提供明确输入，询问用户想构建什么**
 
-   Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
+   **🔴 CHECKPOINT · 🛑 STOP：在调用 AskUserQuestion 前确认确实缺乏足够信息（变更名或描述均缺失），不要在已有足够上下文时仍反复追问。**
 
-   > "What change do you want to work on? Describe what you want to build or fix."
+   使用 **AskUserQuestion 工具**（开放式，无预设选项）问：
 
-   From their description, derive a kebab-case name (e.g., "add user authentication" → `add-user-auth`).
+   > "你想做什么变更？描述你想构建或修复什么。"
 
-   **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
+   从他们的描述中派生一个 kebab-case 名字（如 "add user authentication" → `add-user-auth`）。
 
-2. **Create the change directory**
+   **重要**：在理解用户想构建什么之前不要继续。
 
-   Use the **mkdir** operation to create `specmark/changes/<name>/`. The directory itself is the change record — no separate config file is used.
+2. **创建变更目录**
 
-3. **Check existing progress**
+   用 **mkdir** 操作创建 `specmark/changes/<name>/`。目录本身就是变更记录 —— 不使用单独的配置文件。
 
-   Read `specmark/changes/<name>/tasks.md` and inspect its checkbox state (`- [ ]` incomplete / `- [x]` complete) to understand what has already been done. If `tasks.md` does not exist, this is a freshly created change and nothing has been written yet.
+3. **检查现有进度**
 
-4. **Create artifacts in sequence until apply-ready**
+   读 `specmark/changes/<name>/tasks.md` 并检查其复选框状态（`- [ ]` 未完成 / `- [x]` 完成）以了解已完成什么。如果 `tasks.md` 不存在，这是一个全新创建的变更，尚未写入任何内容。
 
-   Use the **TodoWrite tool** to track progress through the artifacts.
+4. **按序创建产物直到 apply-ready**
 
-   specmark provides its own artifact templates — `proposal.md` / `design.md` / `tasks.md` — defined in the **Task Authoring Standards** section below and in this skill's `references/`. No external CLI is consulted for instructions.
+   用 **TodoWrite 工具**跟踪产物进度。
 
-   Loop through artifacts in dependency order (artifacts with no pending dependencies first):
+   specmark 提供自己的产物模板 —— `proposal.md` / `design.md` / `tasks.md` —— 定义在下方的 **产物模板** 与 **任务编写标准** 章节。不查询任何外部 CLI 获取指令。
 
-   a. **For each artifact that is `ready` (dependencies satisfied)**:
-   - Use the specmark artifact templates (structure defined below and in `references/`) as the structure for your output file
-   - Read any completed dependency files for context (e.g., read `proposal.md` and `design.md` before writing `tasks.md`)
-   - Write the artifact file at `specmark/changes/<name>/<artifact>.md`
-   - Show brief progress: "Created <artifact-id>"
+   按依赖顺序循环产物（无待处理依赖的产物优先）：
 
-   b. **Continue until all required artifacts are complete**
-   - After creating each artifact, re-read `specmark/changes/<name>/tasks.md` checkbox state to confirm progress
-   - Stop when `proposal.md`, `design.md`, and `tasks.md` all exist and `tasks.md` lists every committed task
+   a. **对每个 `ready`（依赖已满足）的产物**：
+   - 使用 specmark 产物模板（结构定义在下方与 `references/`）作为输出文件结构
+   - 创建新产物前读已完成的依赖文件（如写 `tasks.md` 前读 `proposal.md` 和 `design.md`）
+   - 在 `specmark/changes/<name>/<artifact>.md` 写入产物文件
+   - 显示简短进度："Created <artifact-id>"
 
-   c. **If an artifact requires user input** (unclear context):
-   - Use **AskUserQuestion tool** to clarify
-   - Then continue with creation
+   b. **继续直到所有必需产物完成**
+   - 每创建一个产物后，重读 `specmark/changes/<name>/tasks.md` 复选框状态确认进度
+   - 当 `proposal.md`、`design.md`、`tasks.md` 都存在且 `tasks.md` 列出每个已提交任务时停止
 
-5. **Show final status**
-   Read `specmark/changes/<name>/tasks.md` and report the checkbox progress.
+   c. **如果某产物需要用户输入**（上下文不清）：
+   - **🔴 CHECKPOINT · 🛑 STOP：仅在真正阻塞时才打断用户问澄清；能基于已有 proposal/design 做合理决策的就继续，避免频繁中断。**
+   - 用 **AskUserQuestion 工具**澄清
+   - 然后继续创建
 
-**Output**
+5. **显示最终状态**
+   读 `specmark/changes/<name>/tasks.md` 并报告复选框进度。
 
-After completing all artifacts, summarize:
+**输出**
 
-- Change name and location
-- List of artifacts created with brief descriptions
-- What's ready: "All artifacts created! Ready for implementation."
-- Prompt: "Run `/specmark apply` or ask me to implement to start working on the tasks."
+完成所有产物后，总结：
 
-**Artifact Creation Guidelines**
+- 变更名与位置
+- 创建的产物列表及简短描述
+- 已就绪："所有产物已创建！可开始实施。"
+- 提示："运行 `/specmark apply` 或让我实施以开始处理任务。"
 
-- Follow the specmark artifact templates (proposal.md / design.md / tasks.md) defined in **Task Authoring Standards** below and this skill's `references/`
-- Read dependency artifacts for context before creating new ones (e.g., read `proposal.md` and `design.md` before writing `tasks.md`)
-- Use the template structure as the skeleton for your output file - fill in its sections
-- **IMPORTANT**: Template instructions and guidance are constraints for YOU, not content for the file
-  - Do NOT copy template commentary, examples, or placeholder markers into the artifact
-  - These guide what you write, but should never appear in the output
+**产物创建准则**
+
+- 遵循 specmark 产物模板（proposal.md / design.md / tasks.md），定义在下方的 **产物模板** 与 **任务编写标准** 章节
+- 创建新产物前读依赖产物获取上下文（如写 `tasks.md` 前读 `proposal.md` 和 `design.md`）
+- 用模板结构作为输出文件骨架 —— 填充其章节
+- **重要**：模板指令与指引是给你的约束，不是文件内容
+  - 不要把模板注释、示例或占位标记复制进产物
+  - 这些指导你写什么，但绝不应出现在输出中
 
 **Guardrails**
 
-- Create ALL artifacts needed for implementation (proposal.md, design.md, and tasks.md)
-- Always read dependency artifacts before creating a new one
-- If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
-- If a change with that name already exists, ask if user wants to continue it or create a new one
-- Verify each artifact file exists after writing before proceeding to next
-- **Order tasks sequentially** — in `tasks.md`, list tasks in execution/dependency order. Downstream `/specmark apply` enforces strict sequential execution (no skipping), so sequence them so each task can complete before the next begins
+- 创建实施所需的全部产物（proposal.md、design.md、tasks.md）
+- 创建新产物前总是读依赖产物
+- 如果上下文严重不清，问用户 —— 但优先做合理决策保持动量
+- 如果同名变更已存在，问用户想继续它还是新建一个
+- 写入后、进入下一个前验证每个产物文件存在
+- **按顺序排列任务** —— 在 `tasks.md` 中按执行/依赖顺序列任务。下游 `/specmark apply` 强制严格顺序执行（不跳过），所以排列时让每个任务能在下一个开始前完成
 
 ---
 
-## Task Authoring Standards
+## 产物模板（Artifact Templates）
 
-The following standards apply when authoring `tasks.md`. They are mandatory; `apply` and `converge` both assume tasks conform to them.
+以下骨架是 specmark 产物的强制结构。创建产物时用对应骨架填充，不要自创章节。
 
-### 1. Task format — 5 elements
+### proposal.md 骨架
 
-Every task line uses this exact shape:
+```markdown
+# <change-name>
+
+## Motivation
+<为什么做这个变更？解决什么问题/抓住什么机会。1-2 段，指向具体痛点或需求来源>
+
+## Scope
+<这个变更覆盖什么。列具体能力/模块/行为。与 Non-Goals 对应>
+
+## Non-Goals
+<明确不做什么。防止范围蔓延。每条写明为什么排除>
+
+## Clarifications
+<来自 /specmark clarify 的问答记录。若无则省略本节>
+
+- **[<category>]** Q: <问题>
+  A: <用户回答>
+
+## NEEDS CLARIFICATION
+<仅当 propose 自检后仍有无法转为具体任务的需求时才写。硬上限 3 条>
+
+- **[<category>]** <不清楚什么> — <为什么阻塞任务> — <用户不回答时的默认值>
+```
+
+### design.md 骨架
+
+```markdown
+# Design — <change-name>
+
+## Context
+<做这个决策时的背景：现有架构、约束、相关历史决策。给读者足够上下文理解为什么这么决定>
+
+## Decision
+<采用了什么方案。具体到可实施：数据结构、接口签名、模块划分、关键算法>
+
+## Alternatives Considered
+<考虑过但没采用的方案。每个写明：方案是什么、为什么没选（权衡）>
+
+## Consequences
+<这个决策的后果：正面影响、负面影响、技术债、需后续跟进项>
+```
+
+### tasks.md 骨架
+
+tasks.md 用 **任务编写标准** 的 5 元素格式，按执行顺序列出。骨架：
+
+```markdown
+# Tasks — <change-name>
+
+- [ ] [T001] [P0] <描述，含文件路径>
+- [ ] [T002] [P1] <描述，含文件路径>
+...
+
+## Phase N: Convergence
+<仅由 /specmark converge 追加，propose 不写本节>
+```
+
+---
+
+## 任务编写标准
+
+以下标准在编写 `tasks.md` 时适用。它们是强制性的；`apply` 和 `converge` 都假设任务符合它们。
+
+### 1. 任务格式 — 5 元素
+
+每个任务行用这个精确形状：
 
 ```
 - [ ] [T###] [P?] [Story?] Description with file path
 ```
 
-| Element       | Required | Meaning                                                            |
-| ------------- | -------- | ----------------------------------------------------------------- |
-| `- [ ]`       | yes      | Checkbox; flipped to `- [x]` by `apply` on completion            |
-| `[T###]`      | yes      | Zero-padded stable ID (T001, T002...). Never renumber existing IDs |
-| `[P?]`        | yes      | Priority: P0 (blocker) / P1 (must) / P2 (nice). Used by converge  |
-| `[Story?]`    | optional | Story ID if the change is tracked against a backlog story        |
-| Description   | yes      | Imperative, concrete, **must include the file path** being changed |
+| 元素          | 必需 | 含义                                                              |
+| ------------- | ---- | ----------------------------------------------------------------- |
+| `- [ ]`       | 是   | 复选框；完成时由 `apply` 翻转为 `- [x]`                          |
+| `[T###]`      | 是   | 零填充稳定 ID（T001、T002...）。永不重排已有 ID                   |
+| `[P?]`        | 是   | 优先级：P0（阻塞）/ P1（必须）/ P2（可选）。被 converge 使用      |
+| `[Story?]`    | 可选 | 如果变更对应 backlog story，填 story ID                           |
+| Description   | 是   | 祈使句、具体、**必须包含被改动的文件路径**                        |
 
-Example:
+示例：
 
 ```
 - [ ] [T003] [P1] [AUTH-12] Add rate-limit middleware to src/auth/login.ts (10 req/min/IP)
 ```
 
-A task without a file path is almost always under-specified — fix the description, don't waive the rule.
+没有文件路径的任务几乎总是规格不足 —— 修描述，不要放宽规则。
 
-### 2. No Placeholders — hard rule
+### 2. 禁止占位符 — 硬规则
 
-Tasks must be implementable as written, with no decisions deferred. The following phrasings are **forbidden** in task descriptions:
+任务必须按所写即可实施，不延迟任何决策。以下措辞在任务描述中**禁止**：
 
-- `TBD`, `TODO`, `FIXME`, `???`, `<...>`
-- "add appropriate error handling" (what counts as appropriate?)
-- "handle edge cases" (which cases?)
-- "similar to Task N" (write the actual steps; references drift)
-- "write tests for the above" (state what behavior the test asserts)
+- `TBD`、`TODO`、`FIXME`、`???`、`<...>`
+- "add appropriate error handling"（什么算 appropriate？）
+- "handle edge cases"（哪些 case？）
+- "similar to Task N"（写实际步骤；引用会漂移）
+- "write tests for the above"（说明测试断言什么行为）
 - "as needed" / "if relevant" / "where appropriate"
 
-If you cannot write the concrete behavior, the task is under-specified — either split it into concrete sub-tasks or route the open question to `## NEEDS CLARIFICATION` (below).
+如果你写不出具体行为，任务就是规格不足 —— 要么拆成具体子任务，要么把开放问题路由到 `## NEEDS CLARIFICATION`（见下）。
 
-### 3. Bite-sized TDD granularity
+### 3. 小粒度 TDD 颗粒度
 
-Each task should represent **2-5 minutes of focused work**, not a multi-hour epic. If a task would take longer, split it. The preferred shape for any code-producing task is the **TDD five-step cycle**, encoded as either one task with five sub-bullets or five consecutive tasks:
+每个任务应代表 **2-5 分钟的专注工作**，不是多小时大工程。如果任务会更长，拆分。任何产代码任务的首选形状是 **TDD 五步循环**，编码为一个带五子项的任务或五个连续任务：
 
-1. **Red** — write a failing test that pins the desired behavior
-2. **Green** — write the minimum code to make the test pass
-3. **Refactor** — improve structure without changing behavior
+1. **Red** — 写一个失败测试钉住期望行为
+2. **Green** — 写最少代码让测试通过
+3. **Refactor** — 不改行为地改进结构
 4. **Commit** — `git commit -m "feat(<area>): <description>"`
-5. **Verify** — run the affected test suite; confirm green
+5. **Verify** — 跑受影响测试套件；确认 green
 
-Granularity test: if you cannot name the single file and single behavior change in one sentence, the task is too big.
+颗粒度测试：如果你不能用一句话说出单个文件和单个行为变更，任务就太大。
 
-### 4. Self-Review — three checks before finishing
+### 4. 自检 — 完成前三项检查
 
-After drafting all tasks, run these three checks before declaring the change apply-ready. Failures must be fixed before hand-off to `apply`.
+起草所有任务后，在宣布变更 apply-ready 前跑这三项检查。失败必须在交给 `apply` 前修复。
 
-| Check              | What it verifies                                                          |
-| ------------------ | ------------------------------------------------------------------------- |
-| **Spec coverage**  | Every requirement in `proposal.md` and every decision in `design.md` maps to ≥1 task. Unmapped requirements go to NEEDS CLARIFICATION or get a task. |
-| **Placeholder scan** | Grep tasks.md for the forbidden phrases in §2. Zero matches required.   |
-| **Type consistency** | Task IDs are zero-padded and unique; priorities are from {P0,P1,P2}; file paths in descriptions point at files that exist or will be created by an earlier task. |
+| 检查              | 验证什么                                                                  |
+| ----------------- | ------------------------------------------------------------------------- |
+| **Spec 覆盖**     | `proposal.md` 中每个需求与 `design.md` 中每个决策都映射到 ≥1 任务。未映射需求去 NEEDS CLARIFICATION 或加任务。 |
+| **占位符扫描**    | grep tasks.md 找 §2 中的禁用短语。要求零匹配。                            |
+| **类型一致**      | 任务 ID 零填充且唯一；优先级取自 {P0,P1,P2}；描述中文件路径指向已存在或更早任务会创建的文件。 |
 
-### 5. NEEDS CLARIFICATION — bounded bail-out
+### 5. NEEDS CLARIFICATION — 有界 bailout
 
-If, after self-review, a requirement still cannot be turned into a concrete task, record it under a `## NEEDS CLARIFICATION` section at the bottom of `proposal.md` (not `tasks.md` — tasks are commitments, clarifications are questions).
+如果自检后仍有需求无法转为具体任务，记录到 `proposal.md` 底部的 `## NEEDS CLARIFICATION` 节（不是 `tasks.md` —— 任务是承诺，澄清是问题）。
 
-- **Hard cap: 3 items.** If you have 4+, run `/specmark clarify` first and come back.
-- **Sort by impact**, highest first: `scope` > `security/privacy` > `UX` > `technical`. A scope ambiguity blocks more downstream work than a technical one.
-- **Format each item** as:
+- **硬上限：3 条。** 如果有 4+，先跑 `/specmark clarify` 再回来。
+- **按影响排序**，高的在前：`scope` > `security/privacy` > `UX` > `technical`。范围歧义比技术歧义阻塞更多下游工作。
+- **每条格式**：
   ```
-  - **[<category>]** <what's unclear> — <why it blocks a task> — <default if user doesn't answer>
+  - **[<category>]** <不清楚什么> — <为什么阻塞任务> — <用户不回答时的默认值>
   ```
-- `apply` will pause and prompt the user when it encounters a NEEDS CLARIFICATION item relevant to the current task; it does not silently pick the default.
+- `apply` 遇到与当前任务相关的 NEEDS CLARIFICATION 项时会暂停并提示用户；不静默选默认值。
 
-**Hand-off note**: when propose finishes, the prompt to the user becomes: "All artifacts created. Run `/specmark apply` to implement. Optional: `/specmark analyze` for a consistency check first."
+**交接说明**：propose 完成时，给用户的提示变为："所有产物已创建。运行 `/specmark apply` 实施。可选：先 `/specmark analyze` 做一致性检查。"
