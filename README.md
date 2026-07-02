@@ -61,10 +61,6 @@ cd specmark
 
 脚本会自动把 `SKILL.md` + `skill.json` + `references/` 复制到目标 runtime 的 skills 目录。如需手动安装，请用 `list-agents` 子命令查看各 runtime 对应路径后自行复制。
 
-### 无外部依赖
-
-Specmark 是纯文档型 skill，不需要安装任何外部 CLI。所有变更管理操作通过 AI agent 的文件系统工具直接完成。
-
 ## 使用示例
 
 Specmark 作为 skill 被 agent 加载后，通过 `$ARGUMENTS[0]` 选择子命令，也支持自然语言意图触发。子命令详细描述与用户意图路由见 [SKILL.md 路由表](./SKILL.md)。
@@ -149,7 +145,7 @@ explore（探索）→ clarify（澄清）→ propose（生成提案）→ analy
 
 ## 维护说明
 
-本技能的合并历史与维护说明详见 [SKILL.md 维护说明](./SKILL.md#维护说明)。
+本技能原为 4 个独立顶层技能（`specmark-propose` / `specmark-explore` / `specmark-apply-change` / `specmark-archive-change`），现已扁平合并：各原 `SKILL.md` 去除 frontmatter 后成为 `references/{propose,explore,apply,archive}.md`；跨技能交叉引用已改写为本技能子命令（`/specmark apply`、`/specmark propose`）。技能发现机制只识别 `specmark/SKILL.md`，不独立获取 `references/` 内的流程文档。
 
 ## FAQ
 

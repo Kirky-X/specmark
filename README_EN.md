@@ -61,10 +61,6 @@ cd specmark
 
 The script automatically copies `SKILL.md` + `skill.json` + `references/` into the target runtime's skills directory. For manual installation, use the `list-agents` subcommand to look up each runtime's path and copy files yourself.
 
-### No External Dependencies
-
-Specmark is a pure documentation skill — no external CLI installation required. All change-management operations are performed by the AI agent's file-system tools directly.
-
 ## Usage Examples
 
 Once Specmark is loaded as a skill, subcommands are selected via `$ARGUMENTS[0]`, and natural-language intent is also supported. See the [SKILL.md routing table](./SKILL.md) for detailed subcommand descriptions and intent routing.
@@ -149,7 +145,7 @@ explore (exploration) → clarify (clarification) → propose (generate proposal
 
 ## Maintenance Notes
 
-For the merge history and maintenance notes, see [SKILL.md Maintenance Notes](./SKILL.md#维护说明).
+This skill was originally four separate top-level skills (`specmark-propose` / `specmark-explore` / `specmark-apply-change` / `specmark-archive-change`), now flattened and merged: each original `SKILL.md` had its frontmatter removed and became `references/{propose,explore,apply,archive}.md`; cross-skill references were rewritten as subcommands of this skill (`/specmark apply`, `/specmark propose`). The skill discovery mechanism only recognizes `specmark/SKILL.md` and does not independently fetch flow documents inside `references/`.
 
 ## FAQ
 
