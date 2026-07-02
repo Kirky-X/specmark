@@ -38,6 +38,8 @@
 
 5. **对 CRITICAL/HIGH/MEDIUM 缺口，追加收敛任务**
 
+   **🔴 CHECKPOINT · 🛑 STOP：追加前先确认每个待追加任务确实对应 CRITICAL/HIGH/MEDIUM 缺口且非装饰性 —— 拒绝"顺便优化""锦上添花"类任务污染 tasks.md。逐条念出任务描述 + 缺口类型 + 严重度，自检"这个任务不写，spec 与代码会真正矛盾或缺失吗？"答"否"则降级为 LOW/unrequested，仅记录到收敛叙述。**
+
    向 `tasks.md` 追加新节：
 
    ```markdown

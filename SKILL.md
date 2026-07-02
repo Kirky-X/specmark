@@ -1,6 +1,6 @@
 ---
 name: specmark
-description: "Specmark 规格驱动变更。探索、澄清、提案、分析、实施、收敛、归档多阶段 spec-driven 工作流。触发：为变更生成 proposal/design/tasks、实施任务、归档已完成 change、或提到 specmark 工作流。$ARGUMENTS[0] 选子命令，无参列子命令表。"
+description: "Specmark 规格驱动变更。探索、澄清、提案、分析、实施、收敛、归档多阶段 spec-driven 工作流。纯文档型 skill 无外部 CLI 依赖。触发：为变更生成 proposal/design/tasks、实施任务、归档已完成 change、或提到 specmark 工作流。$ARGUMENTS[0] 选子命令，无参列子命令表。"
 argument-hint: "[explore|clarify|propose|analyze|apply|converge|archive]"
 license: MIT
 ---
