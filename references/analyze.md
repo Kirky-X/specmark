@@ -1,6 +1,6 @@
 # Analyze — 跨产物一致性检查（只读质量门）
 
-`propose` 与 `apply` 之间的可选质量门。读取某变更的 `proposal.md`、`design.md`、`tasks.md`，检测跨产物一致性问题，输出 Markdown 报告。**只读**：analyze 绝不修改任何产物。
+`propose` 与 `apply` 之间的可选质量门。读取某变更的 `proposal.md`、`design.md`、`tasks.md`（以及 `specs/` 下的 delta spec，若存在），检测跨产物一致性问题，输出 Markdown 报告。**只读**：analyze 绝不修改任何产物。
 
 **定位**：可选，在 `propose` 之后、`apply` 之前。变更非平凡时使用（如触及 >1 个模块、多步任务、外部集成），值得二次审视。平凡变更跳过。
 
@@ -10,11 +10,11 @@
 
 1. **定位变更及其产物**
 
-   读 `specmark/changes/<name>/tasks.md` 的复选框状态（`- [ ]` 待办 / `- [x]` 完成）确认 `proposal.md`、`design.md`、`tasks.md` 都存在。若任一缺失，输出 CRITICAL 发现（见检测 #6）并用现有内容继续。
+   读 `specmark/changes/<name>/tasks.md` 的复选框状态（`- [ ]` 待办 / `- [x]` 完成）确认 `proposal.md`、`design.md`、`tasks.md` 都存在。若任一缺失，输出 CRITICAL 发现（见检测 #6）并用现有内容继续。检查 `specs/` 目录是否存在 delta spec 文件。
 
-2. **完整读取全部三份产物**
+2. **完整读取全部产物**
 
-   端到端读 `proposal.md`、`design.md`、`tasks.md`。不要略读 —— 跨产物不一致只在三者并持时浮现。
+   端到端读 `proposal.md`、`design.md`、`tasks.md`。若有 `specs/` 目录，读取所有 delta spec 文件。不要略读 —— 跨产物不一致只在所有产物并持时浮现。
 
 3. **跑 6 个检测 pass**
 
@@ -25,8 +25,8 @@
    | 1 | Duplication      | 同一需求/任务在两处陈述且有漂移                          |
    | 2 | Ambiguity        | 术语或行为有多重合理解释                                 |
    | 3 | Underdetermined  | 任务无法在无进一步决策下实施                             |
-   | 4 | Coverage gap     | proposal/design 中有需求但无对应任务                     |
-   | 5 | Inconsistency    | proposal vs design vs tasks 在具体点上互相矛盾           |
+   | 4 | Coverage gap     | proposal/design 中有需求但无对应任务；delta spec 中有 Requirement 但无对应任务 |
+   | 5 | Inconsistency    | proposal vs design vs tasks vs delta spec 在具体点上互相矛盾 |
    | 6 | Missing artifact | 必需产物缺失（如无 tasks.md、无 design.md）              |
 
 4. **为每个发现分配严重度**
@@ -51,7 +51,7 @@
 ```
 ## Analyze 报告 — <change-name>
 
-**已读产物：** proposal.md, design.md, tasks.md
+**已读产物：** proposal.md, design.md, tasks.md, specs/（若存在）
 **发现：** N (CRITICAL: a | HIGH: b | MEDIUM: c | LOW: d)
 
 | # | 严重度    | 检测             | 位置                  | 发现                                                |
@@ -68,7 +68,7 @@
 
 - **只读** —— 绝不写入、编辑或移动任何产物。Analyze 观察；不行动。
 - **上限 50 个发现** —— 硬上限。超限 → 保留最高严重度，抑制其余并计数。
-- **用 specmark 术语** —— 发现引用 `proposal` / `design` / `tasks`（不是 "spec" / "plan" / "implementation"）。任务引用用 tasks.md 的 `T###` ID。
+- **用 specmark 术语** —— 发现引用 `proposal` / `design` / `tasks` / `specs`（不是 "plan" / "implementation"）。任务引用用 tasks.md 的 `T###` ID。
 - **不要凑数** —— 若某类无发现，省略；不要编造 LOW 发现填行。
 - **不阻塞 apply** —— analyze 是建议性的。用户可带未解决发现跑 apply；analyze 不阻塞。
 - **可重跑** —— propose 重新生成产物后，可重跑 analyze 确认发现已清。

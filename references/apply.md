@@ -28,7 +28,7 @@
    读 `specmark/changes/<name>/` 下的产物 —— `proposal.md`、`design.md`、`tasks.md` —— 作为实施上下文。
 
    这给你：
-   - `contextFiles`：变更目录中的产物文件（proposal/design/tasks，加任何 `specs/` delta）
+   - `contextFiles`：变更目录中的产物文件（proposal/design/tasks，加 `specs/` 下的 delta spec 若存在）
    - 进度（`tasks.md` 中 `- [ ]` vs `- [x]` 计数：total/complete/remaining）
    - 带状态的任务列表
    - 当前状态指引
@@ -41,9 +41,9 @@
 4. **读上下文文件**
 
    读 specmark 变更目录（`specmark/changes/<name>/`）中每个产物文件。
-   文件取决于所用 schema：
-   - **spec-driven**：proposal、specs、design、tasks
-   - 其他 schema：遵循 specmark 变更目录的 contextFiles
+   文件取决于变更类型：
+   - **长程变更**（有 specs/ 目录）：proposal、design、tasks、specs 下所有 delta spec
+   - **短程变更**（无 specs/ 目录）：proposal、design、tasks
 
 5. **显示当前进度**
 
@@ -190,14 +190,27 @@ cd ../<change-name>-worktree
 
 满足跳过条件时不创建 worktree，直接在当前分支实施。
 
-## 完成：先 Converge 再 Archive
+## 完成：自动 Converge
 
-当步骤 7 报告"全部完成"（每个任务 `- [x]`），**不要**直接跳到 archive。完成提示增强为两步交接：
+当步骤 7 报告"全部完成"（每个任务 `- [x]`），自动进入 `converge` 对账代码与 spec，不等待用户确认。
 
-1. **第一提示：** "所有任务完成。运行 `/specmark converge` 在归档前把任务与已实施代码对账。"
-2. **converge** 关闭任何追加的收敛任务后（重跑 apply 把它们翻为 `- [x]`），**再**提示："运行 `/specmark archive` 归档此变更。"
+**为什么自动 converge：** archive 把变更目录移入 `archive/` 且难以干净撤销。Converge 在漂移还廉价可修时捕获常见失败模式（实施偏离 spec：缺失边界 case、部分覆盖、静默矛盾）。跳过 converge 意味着归档一个代码未完全匹配 spec 的变更 —— 这会损坏 spec 作为未来变更真相来源的地位。
 
-**为什么 converge 先于 archive：** archive 把变更目录移入 `archive/` 且难以干净撤销。Converge 在漂移还廉价可修时捕获常见失败模式（实施偏离 spec：缺失边界 case、部分覆盖、静默矛盾）。跳过 converge 意味着归档一个代码未完全匹配 spec 的变更 —— 这会损坏 spec 作为未来变更真相来源的地位。
+**converge 完成后：**
+
+1. 无追加任务 → 展示收敛结果，自动衔接下一步
+2. 有追加任务 → 展示追加的任务 → 自动回到 `apply` 关闭它们 → 再次 converge → 直到无新缺口
+
+**converge 彻底完成后，主动向用户提问下一步：**
+
+用 **AskUserQuestion 工具**问：
+
+- "归档此变更？"（→ `/specmark archive`）
+- "开始新变更？"（→ 新 propose）
+- "继续探索其他方向？"（→ explore）
+- "其他操作"
+
+不结束对话，等待用户指令。
 
 **更新后的完成输出：**
 
@@ -208,9 +221,7 @@ cd ../<change-name>-worktree
 **Schema：** <schema-name>
 **进度：** N/N 任务完成 ✓
 
-所有任务完成。下一步：
-1. `/specmark converge` —— 对账任务 vs 代码（推荐）
-2. `/specmark archive` —— 归档此变更（converge 后运行）
+自动进入 converge 对账…
 ```
 
 **Fluid Workflow Integration**
@@ -219,3 +230,4 @@ cd ../<change-name>-worktree
 
 - **可随时调用**：产物未全完成前（若任务存在）、部分实施后、与其他操作交错
 - **允许产物更新**：若实施暴露设计问题，建议更新产物 —— 非阶段锁定，灵活工作
+- **完成后自动衔接 converge**：所有任务 `- [x]` 后自动对账，不等待用户确认

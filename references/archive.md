@@ -2,7 +2,7 @@
 
 在 specmark 工作流中归档已完成的变更。
 
-**输入**：可选指定变更名。若省略，检查能否从对话上下文推断。若模糊或歧义，**必须**提示用户选择可用变更。
+**输入**：可选指定变更名和 `--sync` flag。若省略变更名，检查能否从对话上下文推断。若模糊或歧义，**必须**提示用户选择可用变更。`--sync` 启用 delta spec 到主 spec 的同步（默认不同步）。
 
 **Steps**
 
@@ -21,9 +21,10 @@
 
    读 `specmark/changes/<name>/tasks.md` 复选框状态（`- [ ]` 未完成 / `- [x]` 完成）检查产物完成度。
 
-   这告诉你：
-   - `schemaName`：使用的工作流
-   - `artifacts`：产物列表及其状态（`done` 或其他）
+    这告诉你：
+    - `schemaName`：使用的工作流
+    - `artifacts`：产物列表及其状态（`done` 或其他）
+    - `specs`：delta spec 是否存在（若存在则列出）
 
    **若任一产物非 `done`：**
    - 显示警告列出未完成产物
@@ -47,18 +48,17 @@
 
 4. **评估 delta spec 同步状态**
 
-   检查 `specmark/changes/<name>/specs/` 处的 delta spec。若无，不带同步提示继续。
+   检查 `specmark/changes/<name>/specs/` 处的 delta spec。若无，跳过此步骤。
 
-   **若 delta spec 存在：**
+   **若 delta spec 存在且 `--sync` flag 已传入：**
    - 把每个 delta spec 与 `specmark/specs/<capability>/spec.md` 处对应主 spec 对比
    - 确定会应用什么变更（增、改、删、重命名）
    - 提示前显示合并摘要
+   - 启动子 agent 同步 delta spec 到 `specmark/specs/<capability>/spec.md`（用当前 runtime 的子 agent 机制，把已分析的 delta 应用到对应主 spec 文件；agent 驱动）。把已分析的 delta spec 摘要传入 prompt。
 
-   **提示选项：**
-   - 若需变更："立即同步（推荐）"、"不同步直接归档"
-   - 若已同步："立即归档"、"仍同步"、"取消"
+   **若 delta spec 存在但未传 `--sync`：** 不同步，直接归档。Delta spec 随变更目录一起归档，保留在 `docs/changes/archive/YYYY-MM-DD-<name>/specs/` 中作为历史记录。
 
-   若用户选同步，启动子 agent 同步 delta spec 到 `specmark/specs/<capability>/spec.md`（用当前 runtime 的子 agent 机制，把已分析的 delta —— 增、改、删、重命名 —— 应用到对应主 spec 文件；agent 驱动）。把已分析的 delta spec 摘要传入 prompt。不论选什么都继续归档。
+   **若无 delta spec：** 不带同步提示继续。
 
 5. **执行归档**
 
@@ -82,12 +82,12 @@
 
 6. **显示摘要**
 
-   显示归档完成摘要，含：
-   - 变更名
-   - 使用 schema
-   - 归档位置
-   - spec 是否已同步（若适用）
-   - 任何警告备注（未完成产物/任务）
+    显示归档完成摘要，含：
+    - 变更名
+    - 使用 schema
+    - 归档位置
+    - delta spec 是否已同步（若适用）
+    - 任何警告备注（未完成产物/任务）
 
 **成功时输出**
 
@@ -97,7 +97,7 @@
 **变更：** <change-name>
 **Schema：** <schema-name>
 **归档到：** docs/changes/archive/YYYY-MM-DD-<name>/
-**Specs：** ✓ 已同步到主 specs（或 "无 delta spec" 或 "同步已跳过"）
+**Delta Specs：** ✓ 已同步到主 specs（或 "无 delta spec" 或 "随变更归档（未同步）"）
 
 所有产物完成。所有任务完成。
 ```
@@ -107,7 +107,7 @@
 - 未提供时总是提示选变更
 - 读 `specmark/changes/<name>/tasks.md` 复选框状态做完成检查
 - 不在警告上阻塞归档 —— 仅告知并确认
-- 变更目录整体移到归档；无单独配置文件
+- 变更目录整体移到归档（含 specs/ 目录，若存在）；无单独配置文件
 - 显示清晰的发生了什么摘要
-- 若请求同步，agent 侧驱动：把 delta spec 变更应用到主 specs
-- 若 delta spec 存在，总是跑同步评估并在提示前显示合并摘要
+- delta spec 同步仅在传入 `--sync` flag 时执行；默认不同步，delta spec 随变更归档
+- 归档后 delta spec 保留在 `docs/changes/archive/YYYY-MM-DD-<name>/specs/` 中，可追溯
