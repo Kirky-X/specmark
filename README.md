@@ -10,13 +10,17 @@ specmark 是**纯文档型 skill**，不依赖任何外部 CLI：所有变更管
 ## 功能特性
 
 - **七阶段 spec-driven 工作流**：探索 → 澄清 → 提案 → 分析 → 实施 → 收敛 → 归档，非强制线性，可按需跳转
+- **自动执行链**：阶段间自动衔接（explore→clarify→propose→analyze→apply→converge→提问），无需手动逐步调用
 - **一步生成全套产物**：`propose` 单次产出 `proposal.md` + `design.md` + `tasks.md`
+- **长程变更自动生成 delta spec**：任务数 ≥5 或跨 ≥3 模块时，自动在 `specs/<capability>/spec.md` 生成可验证需求规格
 - **只读思考模式**：`explore` 不写应用代码，用于梳理想法、对比选项、澄清需求
 - **结构化澄清**：`clarify` 跨 8 分类扫描，至多 5 个高影响问题
-- **跨产物质量门**：`analyze` 只读检查 proposal/design/tasks 一致性
+- **跨产物质量门**：`analyze` 只读检查 proposal/design/tasks/delta-spec 一致性
 - **逐条任务追踪**：`apply` 按 `tasks.md` 勾选进度，支持继续中断的 change
-- **收敛对账**：`converge` 对比代码与 spec，append-only 追加遗漏任务
-- **归档时 delta spec 评估**：`archive` 自动评估是否需要同步 delta spec 到 `specmark/specs/`
+- **收敛对账**：`converge` 对比代码与 spec（优先用 delta spec 验收标准），append-only 追加遗漏任务
+- **归档时 delta spec 评估**：`archive` 的 `--sync` flag 可将 delta spec 同步到 `specmark/specs/` 主规格
+- **Mermaid 流程图**：阶段协作链路、自动执行链、调用示例均以 Mermaid 图表可视化
+- **自动链失败模式**：7 种失败条件预定义处理路径（analyze CRITICAL 暂停、converge 循环上限 3 次等）
 - **统一入口**：单一 skill 入口，子命令通过 `$ARGUMENTS[0]` 路由
 
 ## 安装

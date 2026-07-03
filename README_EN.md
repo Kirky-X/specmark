@@ -10,13 +10,17 @@ Specmark is a **pure documentation skill** with no external CLI dependency: all 
 ## Features
 
 - **Seven-stage spec-driven workflow**: explore → clarify → propose → analyze → apply → converge → archive. Non-strictly linear; stages can be skipped as needed.
+- **Auto-execution chain**: Stages auto-link (explore→clarify→propose→analyze→apply→converge→ask next), no manual stepping required.
 - **One-shot artifact generation**: `propose` produces `proposal.md` + `design.md` + `tasks.md` in a single run.
+- **Long-running change auto-generates delta spec**: When tasks ≥ 5 or spanning ≥ 3 modules, automatically creates `specs/<capability>/spec.md` with verifiable requirements.
 - **Read-only thinking mode**: `explore` writes no application code — used to clarify ideas, compare options, refine requirements.
 - **Structured clarification**: `clarify` scans 8 categories, asks at most 5 high-impact questions.
-- **Cross-artifact quality gate**: `analyze` read-only checks proposal/design/tasks consistency.
+- **Cross-artifact quality gate**: `analyze` read-only checks proposal/design/tasks/delta-spec consistency.
 - **Per-task tracking**: `apply` checks off progress against `tasks.md` and supports resuming an interrupted change.
-- **Convergence reconciliation**: `converge` compares code against spec, append-only adds missing tasks.
-- **Delta spec evaluation on archive**: `archive` automatically evaluates whether to sync delta specs into `specmark/specs/`.
+- **Convergence reconciliation**: `converge` compares code against spec (prioritizes delta spec acceptance criteria), append-only adds missing tasks.
+- **Delta spec evaluation on archive**: `archive`'s `--sync` flag syncs delta specs into `specmark/specs/` main specs.
+- **Mermaid flow diagrams**: Stage collaboration chain, auto-execution chain, and usage examples visualized as Mermaid diagrams.
+- **Auto-chain failure modes**: 7 failure conditions with predefined handling (analyze CRITICAL pauses chain, converge loop hard-capped at 3, etc.).
 - **Single entry point**: one skill, with subcommand routing via `$ARGUMENTS[0]`.
 
 ## Installation
