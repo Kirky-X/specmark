@@ -20,19 +20,19 @@
     {
         "id": 4,
         "prompt": "/specmark explore add-api-rate-limiting",
-        "expected": "明确子命令 → 路由到 explore：读代码库、画架构图、探索方案，完成后自动进入 clarify 做结构化澄清，再衔接 propose → analyze → apply → converge → 提问下一步",
-        "scenario": "explore 触发自动链"
+        "expected": "明确子命令 → 路由到 explore：执行 brainstorming 5 步流程（探上下文→挑战假设→方案对比→YAGNI→风险矩阵），完成后自动进入 clarify 做结构化澄清，再衔接 propose → analyze → apply → converge → 提问下一步",
+        "scenario": "explore 触发自动链 + brainstorming 方法论"
     },
     {
         "id": 5,
         "prompt": "/specmark apply",
-        "expected": "明确子命令 → 路由到 apply：检查活动变更、读上下文文件、关键审查、按序实施任务，全部完成后自动进入 converge 对账，converge 完成后主动提问归档/新变更/探索",
+        "expected": "明确子命令 → 路由到 apply：检查活动变更、读上下文文件（含 delta spec）、关键审查（4 项检查）、按序实施任务，全部完成后自动进入 converge 对账（优先用 delta spec 验收标准），converge 完成后主动提问归档/新变更/探索",
         "scenario": "apply 触发自动 converge + 链路终止提问"
     },
     {
         "id": 6,
         "prompt": "/specmark analyze add-user-login",
-        "expected": "明确子命令 → 路由到 analyze：读 proposal/design/tasks/delta-spec，跑 6 个检测 pass，输出只读报告，不写文件",
+        "expected": "明确子命令 → 路由到 analyze：读 proposal/design/tasks/delta-spec，跑 6 个检测 pass（含 delta spec 覆盖检查），输出只读报告，不写文件",
         "scenario": "analyze 独立调用（手动质量门）"
     },
     {
@@ -40,5 +40,17 @@
         "prompt": "/specmark archive",
         "expected": "明确子命令 → 路由到 archive：若无变更名则 Glob+AskUserQuestion 让用户选（不自动选），检查产物/任务完成状态（未完成时 CHECKPOINT 确认），评估 delta spec 同步（--sync 才同步），最后 mv 到 docs/changes/archive/",
         "scenario": "archive 子命令触发，归档 + delta spec 可选同步"
+    },
+    {
+        "id": 8,
+        "prompt": "/specmark explore 帮我对比 3 种缓存策略",
+        "expected": "explore 模式 → 执行 brainstorming Step 3（提出 2-3 方案对比），输出对比表（维度×方案×推荐），同时执行 Step 2（挑战隐性假设）和 Step 5（风险矩阵），完成后自动衔接 clarify",
+        "scenario": "brainstorming 方案对比场景"
+    },
+    {
+        "id": 9,
+        "prompt": "/specmark clarify add-rate-limiting",
+        "expected": "明确子命令 → 路由到 clarify：先探上下文（Glob+git log），跨 8 分类扫描描述，选至多 5 个高影响问题（多选优先），设计决策点附 2-3 方案对比+推荐，用 AskUserQuestion 批量提问，答案写入 proposal.md",
+        "scenario": "clarify 整合 brainstorming 原则"
     }
 ]

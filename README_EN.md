@@ -141,9 +141,11 @@ Complete Steps + Guardrails reference for each subcommand:
 
 ```
 specmark/
-├── changes/    # In-progress changes (proposal/design/tasks)
-└── specs/      # Sync target for archived delta specs
+├── changes/    # In-progress changes (proposal/design/tasks/specs/)
+└── specs/      # Sync target for delta specs (--sync on archive)
 ```
+
+Archived changes are stored in `docs/changes/archive/YYYY-MM-DD-<name>/`, outside of `specmark/`.
 
 ### `test-prompts.json` — Subcommand trigger test cases
 
