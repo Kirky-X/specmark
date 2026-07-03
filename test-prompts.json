@@ -2,43 +2,43 @@
     {
         "id": 1,
         "prompt": "/specmark propose add-user-login",
-        "expected": "明确子命令 → 路由到 propose：用 mkdir 创建 specmark/changes/ 目录，按依赖序生成 proposal/design/tasks 全套产物，完成后提示 /specmark apply（可选先 /specmark analyze）",
-        "scenario": "happy path，最典型路由"
+        "expected": "明确子命令 → 路由到 propose：创建变更目录，按依赖序生成 proposal/design/tasks 全套产物（短程无 spec），自动衔接 analyze → apply → converge → 提问下一步",
+        "scenario": "happy path，短程变更全流程"
     },
     {
         "id": 2,
         "prompt": "/specmark",
         "expected": "无参数 → 输出 7 子命令路由表（explore/clarify/propose/analyze/apply/converge/archive），请用户选择后停止，不擅自进入任一子命令",
-        "scenario": "fallback，参数缺失的处理（SKILL.md 路由表）"
+        "scenario": "fallback，参数缺失的处理"
     },
     {
         "id": 3,
         "prompt": "/specmark 我还没想好这个功能，先帮我梳理思路",
-        "expected": "意图是探索/思考（无明确子命令）→ 用 AskUserQuestion 工具确认是否进入 explore，确认后进 explore（只读模式，读代码但不写应用代码），不自动路由也不直接列表",
-        "scenario": "歧义意图路由（SKILL.md 执行流程：自然语言意图用 AskUserQuestion 确认）"
+        "expected": "意图是探索/思考（无明确子命令）→ 用 AskUserQuestion 确认是否进入 explore，确认后进 explore，完成后自动衔接 clarify → propose → analyze → apply → converge → 提问下一步",
+        "scenario": "歧义意图路由 + 全自动链"
     },
     {
         "id": 4,
-        "prompt": "/specmark clarify add-rate-limiting",
-        "expected": "明确子命令 → 路由到 clarify：跨 8 分类扫描描述，选至多 5 个高影响问题，用 AskUserQuestion 一次批量提问，答案写入 proposal.md 的 ## Clarifications 节，完成后提示 /specmark propose",
-        "scenario": "clarify 子命令触发，结构化澄清流程"
+        "prompt": "/specmark explore add-api-rate-limiting",
+        "expected": "明确子命令 → 路由到 explore：读代码库、画架构图、探索方案，完成后自动进入 clarify 做结构化澄清，再衔接 propose → analyze → apply → converge → 提问下一步",
+        "scenario": "explore 触发自动链"
     },
     {
         "id": 5,
-        "prompt": "/specmark analyze add-user-login",
-        "expected": "明确子命令 → 路由到 analyze：读 proposal/design/tasks 三份产物，跑 6 个检测 pass（Duplication/Ambiguity/Underdetermined/Coverage gap/Inconsistency/Missing artifact），按严重度分配，上限 50 发现，输出只读报告不写文件",
-        "scenario": "analyze 子命令触发，只读质量门"
+        "prompt": "/specmark apply",
+        "expected": "明确子命令 → 路由到 apply：检查活动变更、读上下文文件、关键审查、按序实施任务，全部完成后自动进入 converge 对账，converge 完成后主动提问归档/新变更/探索",
+        "scenario": "apply 触发自动 converge + 链路终止提问"
     },
     {
         "id": 6,
-        "prompt": "/specmark converge",
-        "expected": "明确子命令 → 路由到 converge：先验证 apply 已完成（所有原始任务 - [x]），读三份产物 + 已实施代码，跑 4 个缺口类型 pass（missing/partial/contradicts/unrequested），对 CRITICAL/HIGH/MEDIUM 追加任务到 ## Phase N: Convergence 节，append-only 不改已有任务",
-        "scenario": "converge 子命令触发，归档前对账"
+        "prompt": "/specmark analyze add-user-login",
+        "expected": "明确子命令 → 路由到 analyze：读 proposal/design/tasks/delta-spec，跑 6 个检测 pass，输出只读报告，不写文件",
+        "scenario": "analyze 独立调用（手动质量门）"
     },
     {
         "id": 7,
         "prompt": "/specmark archive",
-        "expected": "明确子命令 → 路由到 archive：若无变更名则用 Glob+AskUserQuestion 让用户选（不自动选），检查产物/任务完成状态（未完成时 CHECKPOINT 确认），评估 delta spec 同步，最后 mv specmark/changes/<name> docs/changes/archive/YYYY-MM-DD-<name>",
-        "scenario": "archive 子命令触发，归档 + delta spec 评估"
+        "expected": "明确子命令 → 路由到 archive：若无变更名则 Glob+AskUserQuestion 让用户选（不自动选），检查产物/任务完成状态（未完成时 CHECKPOINT 确认），评估 delta spec 同步（--sync 才同步），最后 mv 到 docs/changes/archive/",
+        "scenario": "archive 子命令触发，归档 + delta spec 可选同步"
     }
 ]
