@@ -256,9 +256,38 @@ cmd_install() {
 
 # ---------- 子命令: update ----------
 cmd_update() {
-  local skill_name="${1:-}"
-  shift 2>/dev/null || true
-  parse_target_agent "$@"
+  local skill_name=""
+  TARGET_DIR="."
+  AGENT_FLAG=""
+
+  # 解析参数：第一个非 flag 参数是 skill-name（可选）
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --target)
+        shift
+        [[ $# -gt 0 ]] || { err "--target 需要参数"; exit 1; }
+        TARGET_DIR="$1"
+        ;;
+      --agent)
+        shift
+        [[ $# -gt 0 ]] || { err "--agent 需要参数"; exit 1; }
+        AGENT_FLAG="$1"
+        ;;
+      --all-agents)
+        AGENT_FLAG="all"
+        ;;
+      -h|--help)
+        usage; exit 0
+        ;;
+      -*)
+        err "未知参数: $1"; usage; exit 1
+        ;;
+      *)
+        [[ -z "$skill_name" ]] && skill_name="$1" || { err "多余参数: $1"; usage; exit 1; }
+        ;;
+    esac
+    shift
+  done
 
   # Step 1: git pull
   info "拉取最新版本..."
