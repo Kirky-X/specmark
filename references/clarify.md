@@ -64,14 +64,14 @@
 
    默认值不在提案中标记为假设 —— 它们是行业基线。仅当用户显式覆盖时才偏离。
 
-   | 分类             | 默认                                                     |
-   | ---------------- | -------------------------------------------------------- |
-   | Data retention   | 领域行业标准（如 90 天审计日志）                         |
-   | Performance      | Web：p95 < 200ms / 移动：p95 < 500ms                     |
-   | Availability     | 单区域、工作时间 SLO                                     |
-   | Accessibility    | WCAG 2.1 AA                                              |
-   | Logging          | 结构化日志，无 PII                                       |
-   | Error reporting  | Sentry 级：错误 + 栈，无用户数据                         |
+   | 分类                  | 默认                                                     |
+   | --------------------- | -------------------------------------------------------- |
+   | NFR.Data retention    | 领域行业标准（如 90 天审计日志）                         |
+   | NFR.Performance       | Web：p95 < 200ms / 移动：p95 < 500ms                     |
+   | NFR.Availability      | 单区域、工作时间 SLO                                     |
+   | NFR.Accessibility     | WCAG 2.1 AA                                              |
+   | NFR.Logging           | 结构化日志，无 PII                                       |
+   | NFR.Error reporting   | Sentry 级：错误 + 栈，无用户数据                         |
 
 5. **每个答案到达时写入 proposal.md**
 

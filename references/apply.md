@@ -67,7 +67,7 @@
    **暂停条件：**
    - 任务不清 → 请求澄清。判定"不清"的启发式（满足任一即暂停）：
      - 任务描述无文件路径（无处下手）
-     - 任务描述含禁用短语（TBD / TODO / FIXME / ??? / "as needed" / "if relevant" / "where appropriate"）
+     - 任务描述含禁用短语（见 propose.md §2 定义的禁用短语清单）
      - 任务描述 <10 字（规格不足）
      - 任务描述无可验证的完成标准（"做完了"无法判定）
    - 实施暴露设计问题 → 建议更新产物
@@ -155,7 +155,7 @@
 
 **检查（进入循环前全部必须通过）：**
 
-1. **占位符扫描** —— grep `tasks.md` 找 `propose.md` §2 定义的禁用短语（TBD / TODO / FIXME / "add appropriate error handling" / "handle edge cases" / "similar to Task N" / "write tests for the above" / "as needed" / "if relevant" / "where appropriate"）。要求零匹配。
+1. **占位符扫描** —— grep `tasks.md` 找 `propose.md` §2 定义的禁用短语清单。要求零匹配。
 2. **文件路径存在性** —— 每个任务描述含至少一个文件路径。无路径的任务规格不足，会导致实施中途停滞。
 3. **隐藏依赖检查** —— 对每个任务 N，验证任务 N+1 所需确实由任务 N（或更早）产出。顺序执行意味着缺失依赖阻塞整条链。
 4. **NEEDS CLARIFICATION 扫描** —— 读 `proposal.md` 找 `## NEEDS CLARIFICATION` 节。若任一项影响早期任务，**现在**暴露给用户，在开始前，而非实施中途停滞。
@@ -199,7 +199,7 @@ cd ../<change-name>-worktree
 **converge 完成后：**
 
 1. 无追加任务 → 展示收敛结果，自动衔接下一步
-2. 有追加任务 → 展示追加的任务 → 自动回到 `apply` 关闭它们 → 再次 converge → 直到无新缺口
+2. 有追加任务 → 展示追加的任务 → 自动回到 `apply` 关闭它们 → 再次 converge → 循环 ≤ 3 次；超过 3 次由 converge 强制停止并展示 3 轮摘要（与 converge.md line 79-83、SKILL.md line 150 一致）
 
 **converge 彻底完成后，主动向用户提问下一步：**
 

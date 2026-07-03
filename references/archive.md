@@ -19,16 +19,16 @@
 
 2. **检查产物完成状态**
 
-   读 `specmark/changes/<name>/tasks.md` 复选框状态（`- [ ]` 未完成 / `- [x]` 完成）检查产物完成度。
+   用 **Glob 工具**检查 `specmark/changes/<name>/` 下产物文件存在性：`proposal.md` / `design.md` / `tasks.md` / `specs/`（`specs/` 目录用 Glob `specmark/changes/<name>/specs/**/*.md` 检查是否存在 delta spec 文件）。
 
     这告诉你：
-    - `schemaName`：使用的工作流
-    - `artifacts`：产物列表及其状态（`done` 或其他）
+    - `schemaName`：使用的工作流（从 `tasks.md` 内容推断，若文件存在）
+    - `artifacts`：产物文件存在性（`proposal.md` / `design.md` / `tasks.md` 各自存在或缺失）
     - `specs`：delta spec 是否存在（若存在则列出）
 
-   **若任一产物非 `done`：**
-   - 显示警告列出未完成产物
-   - **🔴 CHECKPOINT · 🛑 STOP：用 AskUserQuestion 确认用户是否要带未完成产物继续归档；默认建议先完成，不静默归档。**
+   **若任一产物文件缺失：**
+   - 显示警告列出缺失的产物文件
+   - **🔴 CHECKPOINT · 🛑 STOP：用 AskUserQuestion 确认用户是否要带缺失产物继续归档；默认建议先完成，不静默归档。**
    - 用 **AskUserQuestion 工具**确认用户想继续
    - 用户确认后继续
 

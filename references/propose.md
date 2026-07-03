@@ -44,7 +44,7 @@
    > **输入：** 变更名 `<name>`
    > **输出：** 进度状态（全新 / 继续中 + 已完成产物列表）
 
-   读 `specmark/changes/<name>/tasks.md` 并检查其复选框状态（`- [ ]` 未完成 / `- [x]` 完成）以了解已完成什么。如果 `tasks.md` 不存在，这是一个全新创建的变更，尚未写入任何内容。
+   读 `specmark/changes/<name>/` 下的全部产物（`proposal.md` / `design.md` / `tasks.md`）并检查各自状态以了解已完成什么。若三份产物均不存在，视为全新变更。若 `proposal.md` 已存在且含 `## Clarifications` 节（由 `clarify` 写入），步骤 4a 创建/更新 `proposal.md` 时必须保留该节，不得覆盖。
 
 4. **按序创建产物直到 apply-ready**
 
@@ -116,7 +116,7 @@ analyze 完成后，展示结果并自动衔接下一步：
 **Guardrails**
 
 - 创建实施所需的全部产物（proposal.md、design.md、tasks.md）
-- 长程变更（任务数 ≥ 5 或跨 ≥ 3 模块）额外生成 `specs/<capability>/spec.md`；短程变更跳过
+- 长程变更（任务数 ≥ 5、跨 ≥ 3 模块、或 proposal.md 描述涉及多个能力域或子系统）额外生成 `specs/<capability>/spec.md`；短程变更跳过
 - 创建新产物前总是读依赖产物
 - 如果上下文严重不清，问用户 —— 但优先做合理决策保持动量
 - 如果同名变更已存在，问用户想继续它还是新建一个
