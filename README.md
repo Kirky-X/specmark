@@ -145,7 +145,7 @@ specmark/
 └── specs/      # 长程变更的 delta spec 同步目标(--sync 归档时)
 ```
 
-归档后的变更存放在 `docs/changes/archive/YYYY-MM-DD-<name>/`，不在 `specmark/` 下。
+归档后的变更存放在 `specmark/archive/YYYY-MM-DD-<name>/`。
 
 ### `test-prompts.json` —— 子命令触发测试用例
 

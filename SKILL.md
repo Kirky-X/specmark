@@ -167,7 +167,7 @@ flowchart TD
 | - | ---------------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------- |
 | 1 | 在 `explore` 模式写应用代码                                | explore 是只读思考模式；写代码会让"探索"变成"实施"，破坏阶段边界    | 想清楚后退出 explore，用 `propose` 落地变更，再 `apply` 实施          |
 | 2 | 跳过 `propose` 直接 `apply`                                | 没有 proposal/design/tasks 就实施，spec 失去追溯依据，converge 失效 | 先 `/specmark propose` 生成全套产物（长程变更含 delta spec），再 `/specmark apply` |
-| 3 | 修改已归档的 change（`docs/changes/archive/` 下文件）      | 归档是只读历史；改动归档会让 spec 与历史代码脱钩                    | 新建 change 处理后续变更；归档内容只读                                |
+| 3 | 修改已归档的 change（`specmark/archive/` 下文件）      | 归档是只读历史；改动归档会让 spec 与历史代码脱钩                    | 新建 change 处理后续变更；归档内容只读                                |
 | 4 | `apply` 跳过未完成任务直接做下一个                         | 顺序执行是硬约束；跳过会让下游任务依赖缺失                          | 严格按 `tasks.md` 顺序；遇阻则 PAUSE，不跳过                          |
 | 5 | `converge` 改写已有任务而非 append                         | append-only 是硬约束；改写会让历史任务不可追溯                      | 仅在 `## Phase N: Convergence` 段追加新任务                           |
 | 6 | 在 `tasks.md` 留 `TBD` / `TODO` / "as needed" 等占位符     | 占位符让 apply 中途停滞；任务必须可执行                             | 拆为具体子任务，或写到 `proposal.md` 的 `## NEEDS CLARIFICATION`      |

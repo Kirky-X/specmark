@@ -56,7 +56,7 @@
    - 提示前显示合并摘要
    - 启动子 agent 同步 delta spec 到 `specmark/specs/<capability>/spec.md`（用当前 runtime 的子 agent 机制，把已分析的 delta 应用到对应主 spec 文件；agent 驱动）。把已分析的 delta spec 摘要传入 prompt。
 
-   **若 delta spec 存在但未传 `--sync`：** 不同步，直接归档。Delta spec 随变更目录一起归档，保留在 `docs/changes/archive/YYYY-MM-DD-<name>/specs/` 中作为历史记录。
+   **若 delta spec 存在但未传 `--sync`：** 不同步，直接归档。Delta spec 随变更目录一起归档，保留在 `specmark/archive/YYYY-MM-DD-<name>/specs/` 中作为历史记录。
 
    **若无 delta spec：** 不带同步提示继续。
 
@@ -65,10 +65,10 @@
    若归档目录不存在则创建：
 
    ```bash
-   mkdir -p docs/changes/archive
+   mkdir -p specmark/archive
    ```
 
-   **关于路径：** 归档目录 `docs/changes/archive/` 与活动目录 `specmark/changes/` 分离 —— 便于 git ignore 活动 `specmark/changes/` 内容同时保留历史归档可追溯。活动 changes 是工作区产物（可丢弃、可重建），归档是长期历史记录（需版本控制保留）。
+   **关于路径：** 归档目录 `specmark/archive/` 与活动目录 `specmark/changes/` 分离 —— 便于 git ignore 活动 `specmark/changes/` 内容同时保留历史归档可追溯。活动 changes 是工作区产物（可丢弃、可重建），归档是长期历史记录（需版本控制保留）。
 
    用当前日期生成目标名：`YYYY-MM-DD-<change-name>`
 
@@ -77,7 +77,7 @@
    - 否：把变更目录移到归档
 
    ```bash
-   mv specmark/changes/<name> docs/changes/archive/YYYY-MM-DD-<name>
+   mv specmark/changes/<name> specmark/archive/YYYY-MM-DD-<name>
    ```
 
 6. **显示摘要**
@@ -96,7 +96,7 @@
 
 **变更：** <change-name>
 **Schema：** <schema-name>
-**归档到：** docs/changes/archive/YYYY-MM-DD-<name>/
+**归档到：** specmark/archive/YYYY-MM-DD-<name>/
 **Delta Specs：** ✓ 已同步到主 specs（或 "无 delta spec" 或 "随变更归档（未同步）"）
 
 所有产物完成。所有任务完成。
@@ -110,4 +110,4 @@
 - 变更目录整体移到归档（含 specs/ 目录，若存在）；无单独配置文件
 - 显示清晰的发生了什么摘要
 - delta spec 同步仅在传入 `--sync` flag 时执行；默认不同步，delta spec 随变更归档
-- 归档后 delta spec 保留在 `docs/changes/archive/YYYY-MM-DD-<name>/specs/` 中，可追溯
+- 归档后 delta spec 保留在 `specmark/archive/YYYY-MM-DD-<name>/specs/` 中，可追溯

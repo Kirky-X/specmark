@@ -145,7 +145,7 @@ specmark/
 └── specs/      # Sync target for delta specs (--sync on archive)
 ```
 
-Archived changes are stored in `docs/changes/archive/YYYY-MM-DD-<name>/`, outside of `specmark/`.
+Archived changes are stored in `specmark/archive/YYYY-MM-DD-<name>/`.
 
 ### `test-prompts.json` — Subcommand trigger test cases
 
