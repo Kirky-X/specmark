@@ -65,6 +65,23 @@ cd specmark
 
 The script automatically copies `SKILL.md` + `skill.json` + `references/` into the target runtime's skills directory. For manual installation, use the `list-agents` subcommand to look up each runtime's path and copy files yourself.
 
+### Updating
+
+Skills installed via `install-skill.sh` support one-command updates:
+
+```bash
+# Update a single skill (git pull + reinstall)
+./scripts/install-skill.sh update specmark --agent claude
+
+# Update all skills
+./scripts/install-skill.sh update --agent claude
+
+# Update to all agents
+./scripts/install-skill.sh update specmark --all-agents
+```
+
+Skills installed via `npx skills add` require re-running `npx skills add` to pull the latest version.
+
 ## Usage Examples
 
 Once Specmark is loaded as a skill, subcommands are selected via `$ARGUMENTS[0]`, and natural-language intent is also supported. See the [SKILL.md routing table](./SKILL.md) for detailed subcommand descriptions and intent routing.

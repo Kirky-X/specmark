@@ -65,6 +65,23 @@ cd specmark
 
 脚本会自动把 `SKILL.md` + `skill.json` + `references/` 复制到目标 runtime 的 skills 目录。如需手动安装，请用 `list-agents` 子命令查看各 runtime 对应路径后自行复制。
 
+### 更新
+
+通过 `install-skill.sh` 安装的 skill 支持一键更新：
+
+```bash
+# 更新单个 skill（git pull + 重新安装）
+./scripts/install-skill.sh update specmark --agent claude
+
+# 更新所有 skill
+./scripts/install-skill.sh update --agent claude
+
+# 更新到所有 agent
+./scripts/install-skill.sh update specmark --all-agents
+```
+
+通过 `npx skills add` 安装的 skill，需重新运行 `npx skills add` 拉取最新版本。
+
 ## 使用示例
 
 Specmark 作为 skill 被 agent 加载后，通过 `$ARGUMENTS[0]` 选择子命令，也支持自然语言意图触发。子命令详细描述与用户意图路由见 [SKILL.md 路由表](./SKILL.md)。
