@@ -12,29 +12,41 @@
 
    读 `tasks.md`。若任何任务在现有 `## Phase N: Convergence` 节外是 `- [ ]`，暂停并建议："Apply 未完成（N 个任务开放）。先完成 `/specmark apply` 再 converge。"不继续。
 
-2. **读取产物与已实施代码**
+2. **读取产物与已实施代码（用 `git diff` 做 drift 基线）**
 
    完整读 `proposal.md`、`design.md`、`tasks.md`。检查 `specmark/changes/<name>/specs/` 是否存在 delta spec 文件——若存在，优先读取 delta spec 作为对比的规格依据（delta spec 定义了该能力域的可验证需求）。然后定位并读任务触及的代码（任务描述中的文件路径 + 标准源码根）。对比是代码对 spec（有 delta spec 时）或代码对 proposal/design（无 delta spec 时），不是 spec 对 spec。
+
+   **drift 基线（git 集成）**：若仓库是 git，用 `git diff` 确定本变更实际改动的代码范围，作为缺口扫描的事实基线，避免遗漏未声明改动或误把无关文件纳入对比：
+
+   ```bash
+   # 优先基线：归档锚定的 commit（若 change 的 meta.json 存在 commit_sha）；否则用变更开始前的 commit
+   BASE="<change meta.json 的 commit_sha 或 main 分支>"
+   git diff --name-only "$BASE"...HEAD -- <任务描述涉及的源码根>
+   ```
+
+   - 用 diff 输出的文件清单（而非仅 `tasks.md` 列出的路径）作为代码侧扫描范围——apply 实施中可能产生任务描述未列的连带改动，`git diff` 能暴露这些 drift。
+   - 非 git 仓库：回退到任务描述中的文件路径 + 标准源码根，并在收敛叙述中标注"未用 git diff 基线"。
+   - diff 基线只用于**圈定扫描范围**；缺口的判定仍由步骤 3 的 4-pass 对比（代码行为 vs spec 需求）决定。
 
 3. **跑 4 个缺口类型 pass**
 
    每个 pass，把代码行为与 spec 陈述的需求/设计对比并记录缺口。
 
-   | 缺口类型     | 含义                                                            |
-   | ------------ | --------------------------------------------------------------- |
-   | missing      | Spec 要求 X；代码无 X 的实现                                    |
-   | partial      | Spec 要求 X；代码实现了 X 的一部分（缺子 case 或分支）          |
-   | contradicts  | Spec 说 X；代码做 Y（真正矛盾，非仅不完整）                     |
-   | unrequested  | 代码做 Z；spec 从未要 Z（范围蔓延 / 投机功能）                  |
+   | 缺口类型    | 含义                                                   |
+   | ----------- | ------------------------------------------------------ |
+   | missing     | Spec 要求 X；代码无 X 的实现                           |
+   | partial     | Spec 要求 X；代码实现了 X 的一部分（缺子 case 或分支） |
+   | contradicts | Spec 说 X；代码做 Y（真正矛盾，非仅不完整）            |
+   | unrequested | 代码做 Z；spec 从未要 Z（范围蔓延 / 投机功能）         |
 
 4. **为每个缺口分配严重度**
 
-   | 严重度    | 含义                                                                  |
-   | --------- | -------------------------------------------------------------------- |
-   | CRITICAL  | 与核心需求矛盾，或缺失安全/数据完整性需求                            |
-   | HIGH      | 主功能需求缺失/部分                                                   |
-   | MEDIUM    | 边界 case 或 NFR 缺失/部分                                            |
-   | LOW       | 未请求的次要便利；装饰性漂移                                          |
+   | 严重度   | 含义                                      |
+   | -------- | ----------------------------------------- |
+   | CRITICAL | 与核心需求矛盾，或缺失安全/数据完整性需求 |
+   | HIGH     | 主功能需求缺失/部分                       |
+   | MEDIUM   | 边界 case 或 NFR 缺失/部分                |
+   | LOW      | 未请求的次要便利；装饰性漂移              |
 
 5. **对 CRITICAL/HIGH/MEDIUM 缺口，追加收敛任务**
 

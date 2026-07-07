@@ -63,6 +63,30 @@ err()  { printf '%s[ERROR]%s %s\n' "$RED" "$RESET" "$*" >&2; }
 warn() { printf '%s[WARN]%s  %s\n' "$YELLOW" "$RESET" "$*" >&2; }
 info() { printf '%s[INFO]%s  %s\n' "$BLUE" "$RESET" "$*"; }
 
+# 危险操作确认：交互式 y/N，非 tty / 非交互默认拒绝。
+# 用法: confirm_dangerous "<提示文案>"  → 返回 0=确认, 1=拒绝
+confirm_dangerous() {
+  local prompt="$1"
+  if [[ ! -t 0 ]]; then
+    warn "$prompt（非交互模式，拒绝执行）"
+    return 1
+  fi
+  local reply
+  read -r -p "$prompt [y/N] " reply || return 1
+  [[ "$reply" =~ ^[Yy]$ ]]
+}
+
+# rm -rf 卫语句：拒绝空值或根目录，防 dest 误空时 rm -rf "/" 灾难。
+# 用法: safe_rm_dest "<目标路径>"
+safe_rm_dest() {
+  local target="$1"
+  if [[ -z "$target" || "$target" == "/" ]]; then
+    err "拒绝 rm：目标为空或为根目录（防止误删）: '$target'"
+    exit 1
+  fi
+  rm -rf "$target"
+}
+
 # ---------- agent 映射 ----------
 # 格式: agent_name|folder|skill_subdir
 AGENTS=(
@@ -89,8 +113,10 @@ Usage: install-skill.sh <command> [options]
 Commands:
   install <skill-name> [--target <dir>] [--agent <type>|--all-agents]
       安装 skill 到目标项目的 agent 目录（默认 --target .  默认 --agent claude）
-  update [skill-name] [--target <dir>] [--agent <type>|--all-agents]
-      从 git 拉取最新版本并重新安装。不指定 skill-name 则更新所有 skill
+  update [skill-name] [--target <dir>] [--agent <type>|--all-agents] [--force]
+      从 git 拉取最新版本并重新安装。不指定 skill-name 则更新所有 skill。
+      git pull --ff-only 失败时会回退到 git reset --hard（丢弃本地改动）；
+      该回退需交互确认 y/N，加 --force 跳过确认（CI 友好）。
   uninstall <skill-name> [--target <dir>] [--agent <type>|--all-agents]
       卸载 skill
   list-skills
@@ -108,6 +134,7 @@ Options:
   --agent <type>   指定单个 agent（默认 claude）
   --all-agents     对所有支持的 agent 操作
   --commands <list> 逗号分隔的子命令列表（仅 generate-commands 使用）
+  --force          (仅 update) 跳过 git reset --hard 的交互确认；非交互模式下必需
   -h, --help       显示此帮助
 
 Agents: claude cursor windsurf trae gemini copilot opencode roocode qoder
@@ -211,8 +238,8 @@ cmd_install() {
     subdir="${cfg##*|}"
     dest="$TARGET_DIR/$folder/$subdir/$skill_name"
 
-    # 清理后重建，避免残留旧文件
-    rm -rf "$dest"
+    # 清理后重建，避免残留旧文件（带卫语句，防 dest 为空时 rm -rf "/"）
+    safe_rm_dest "$dest"
     mkdir -p "$dest"
 
     # 复制源目录顶层条目，跳过排除项（避免复制 .venv / .git 等大目录）
@@ -244,8 +271,8 @@ cmd_install() {
       printf '%-10s %-58s %s%s%s\n' "$agent" "$dest" "$RED" "FAILED" "$RESET"
       continue
     fi
-    # specmark/changes 为运行时产物（specmark skill 本身保留）
-    rm -rf "$dest/specmark/changes" 2>/dev/null || true
+    # specmark/changes 为运行时产物（specmark skill 本身保留）；带卫语句
+    [[ -n "$dest" && "$dest" != "/" ]] && rm -rf "$dest/specmark/changes" 2>/dev/null || true
 
     printf '%-10s %-58s %s%s%s\n' "$agent" "$dest" "$GREEN" "OK" "$RESET"
   done <<< "$agents"
@@ -257,6 +284,7 @@ cmd_install() {
 # ---------- 子命令: update ----------
 cmd_update() {
   local skill_name=""
+  local FORCE=0
   TARGET_DIR="."
   AGENT_FLAG=""
 
@@ -276,6 +304,9 @@ cmd_update() {
       --all-agents)
         AGENT_FLAG="all"
         ;;
+      --force)
+        FORCE=1
+        ;;
       -h|--help)
         usage; exit 0
         ;;
@@ -293,12 +324,19 @@ cmd_update() {
   info "拉取最新版本..."
   if [[ -d "$PROJECT_ROOT/.git" ]]; then
     if ! git -C "$PROJECT_ROOT" pull --ff-only 2>/dev/null; then
-      warn "git pull 失败，尝试 git fetch + reset"
+      warn "git pull --ff-only 失败"
       git -C "$PROJECT_ROOT" fetch origin 2>/dev/null || true
       local current_branch
       current_branch="$(git -C "$PROJECT_ROOT" branch --show-current 2>/dev/null || echo "main")"
-      git -C "$PROJECT_ROOT" reset --hard "origin/$current_branch" 2>/dev/null || {
-        err "无法拉取最新版本，请手动 git pull"
+      # reset --hard 会丢弃本地未提交改动，按需确认（--force 跳过确认）
+      if [[ $FORCE -ne 1 ]]; then
+        if ! confirm_dangerous "将对 $PROJECT_ROOT 执行 git reset --hard origin/$current_branch（丢弃本地改动），确认？"; then
+          err "已拒绝 git reset --hard。请手动处理（git pull / merge / rebase）后重试，或加 --force 跳过确认"
+          exit 1
+        fi
+      fi
+      git -C "$PROJECT_ROOT" reset --hard "origin/$current_branch" || {
+        err "git reset --hard 失败，请手动 git pull"
         exit 1
       }
     fi
@@ -381,7 +419,7 @@ cmd_uninstall() {
     dest="$TARGET_DIR/$folder/$subdir/$skill_name"
 
     if [[ -d "$dest" ]]; then
-      rm -rf "$dest"
+      safe_rm_dest "$dest"
       printf '%-10s %-58s %s%s%s\n' "$agent" "$dest" "$GREEN" "REMOVED" "$RESET"
     else
       printf '%-10s %-58s %s%s%s\n' "$agent" "$dest" "$YELLOW" "ABSENT" "$RESET"

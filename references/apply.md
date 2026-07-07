@@ -4,6 +4,10 @@
 
 **输入**：可选指定变更名。若省略，检查能否从对话上下文推断。若模糊或歧义，**必须**提示用户选择可用变更。
 
+**Flags**：
+
+- `--auto-commit`：每完成一个任务（标记 `- [x]` 后）自动 `git commit`，消息形如 `feat(<change>): [T###] <任务描述简述>`，同时提交代码改动与 `tasks.md` 复选框翻转。**默认关闭**——不传时保持现有行为（不自动 commit，由用户自行决定提交节奏与粒度）。仅在仓库为 git 且当前可提交时生效；非 git 仓库静默跳过并告知用户。
+
 **Steps**
 
 1. **选择变更**
@@ -62,6 +66,12 @@
    - 做所需代码改动
    - 保持改动最小且聚焦于那一项任务
    - **立即**在任务文件中标记完成：`- [ ]` → `- [x]`
+   - **若传了 `--auto-commit`**：立即提交，把本任务的代码改动 + `tasks.md` 复选框翻转一起入栈：
+     ```bash
+     git add <本任务改动的文件> specmark/changes/<name>/tasks.md
+     git commit -m "feat(<name>): [T###] <任务简述>"
+     ```
+     仅 git 仓库生效；非 git 跳过并告知。提交失败（如 pre-commit 钩子拒绝）→ 暂停循环，报告错误，不跳过。
    - 然后才前进到下一个任务
 
    **暂停条件：**
@@ -178,12 +188,14 @@ cd ../<change-name>-worktree
 ```
 
 **为什么：**
+
 - 保持主工作树干净，便于并行做其他变更
 - 实施走偏时易整体丢弃（`git worktree remove`）
 - `tasks.md` 复选框与任何进行中 commit 与其他分支隔离
 - 自然配对 `propose.md` §3 的 TDD 每任务一 commit 纪律
 
 **跳过条件（明确判定）：** 满足以下任一即跳过 worktree 创建：
+
 - 单文件改动
 - 用户已在 dedicated branch 上工作（用 `git branch --show-current` 检查；分支名非 `main`/`master` 即视为 dedicated）
 - 变更预计单次会话内完成
