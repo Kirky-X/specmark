@@ -1,7 +1,8 @@
 # Specmark —— 规格驱动变更工作流技能
 
-[![GitHub Release](https://img.shields.io/github/v/release/Kirky-X/specmark?style=flat-square)](https://github.com/Kirky-X/specmark/releases)
-[![GitHub License](https://img.shields.io/github/license/Kirky-X/specmark?style=flat-square)](LICENSE)
+[English](README_EN.md)
+
+[![GitHub Release](https://img.shields.io/github/v/release/Kirky-X/specmark?style=flat-square)](https://github.com/Kirky-X/specmark/releases) [![GitHub License](https://img.shields.io/github/license/Kirky-X/specmark?style=flat-square)](LICENSE)
 
 Specmark 是一个面向 AI agent 的规格驱动变更(spec-driven change)管理 skill，前身是 4 个独立的 `specmark-*` 顶层技能，现已扁平合并为单一 skill。它通过七个子命令构成完整工作流：`explore`（只读探索/思考）→ `clarify`（结构化澄清）→ `propose`（一步生成 proposal + design + tasks 全套产物）→ `analyze`（跨产物一致性检查）→ `apply`（按 tasks.md 逐条实施）→ `converge`（收敛代码与 spec 缺口）→ `archive`（归档已完成变更并评估 delta spec 同步）。
 
@@ -153,9 +154,14 @@ specmark/
 
 ## 完整流程链路
 
-```
-explore（探索）→ clarify（澄清）→ propose（生成提案）→ analyze（一致性分析）→ apply（实施）→ converge（收敛）→ archive（归档）
-(只读思考)        (8分类问答)       (proposal/design/tasks) (只读质量门)        (逐条勾选)       (append 缺漏)      (delta spec 同步)
+```mermaid
+flowchart LR
+    A["explore<br/>探索(只读思考)"] --> B["clarify<br/>澄清(8分类问答)"]
+    B --> C["propose<br/>生成提案<br/>(proposal/design/tasks)"]
+    C --> D["analyze<br/>一致性分析<br/>(只读质量门)"]
+    D --> E["apply<br/>实施(逐条勾选)"]
+    E --> F["converge<br/>收敛(append 缺漏)"]
+    F --> G["archive<br/>归档(delta spec 同步)"]
 ```
 
 1. `explore` 是只读思考模式，可随时进入；想清楚后用 `clarify`（可选）或 `propose` 落地为变更

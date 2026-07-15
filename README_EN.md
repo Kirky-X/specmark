@@ -1,7 +1,8 @@
 # Specmark — Specification-Driven Change Workflow Skill
 
-[![GitHub Release](https://img.shields.io/github/v/release/Kirky-X/specmark?style=flat-square)](https://github.com/Kirky-X/specmark/releases)
-[![GitHub License](https://img.shields.io/github/license/Kirky-X/specmark?style=flat-square)](LICENSE)
+[中文](README.md)
+
+[![GitHub Release](https://img.shields.io/github/v/release/Kirky-X/specmark?style=flat-square)](https://github.com/Kirky-X/specmark/releases) [![GitHub License](https://img.shields.io/github/license/Kirky-X/specmark?style=flat-square)](LICENSE)
 
 Specmark is an AI-agent-oriented specification-driven change management skill. It is the successor to four separate `specmark-*` top-level skills, now flattened and merged into a single skill. It provides a complete workflow through seven subcommands: `explore` (read-only exploration/thinking) → `clarify` (structured clarification) → `propose` (one-shot generation of proposal + design + tasks) → `analyze` (cross-artifact consistency check) → `apply` (execute tasks.md item by item) → `converge` (reconcile code against spec) → `archive` (archive completed changes and evaluate delta spec synchronization).
 
@@ -153,9 +154,14 @@ Contains trigger-phrase test cases for each subcommand, used to verify skill rou
 
 ## Complete Workflow Chain
 
-```
-explore (exploration) → clarify (clarification) → propose (generate proposal) → analyze (consistency analysis) → apply (execute) → converge (reconcile) → archive (archive)
-(read-only thinking)     (8-category Q&A)          (proposal/design/tasks)        (read-only gate)              (per-task checkoff) (append gaps)        (delta spec sync)
+```mermaid
+flowchart LR
+    A["explore<br/>(exploration, read-only thinking)"] --> B["clarify<br/>(clarification, 8-category Q&A)"]
+    B --> C["propose<br/>(generate proposal,<br/>proposal/design/tasks)"]
+    C --> D["analyze<br/>(consistency analysis, read-only gate)"]
+    D --> E["apply<br/>(execute, per-task checkoff)"]
+    E --> F["converge<br/>(reconcile, append gaps)"]
+    F --> G["archive<br/>(archive, delta spec sync)"]
 ```
 
 1. `explore` is a read-only thinking mode, enterable at any time; once the idea is clear, use `clarify` (optional) or `propose` to land it as a change.

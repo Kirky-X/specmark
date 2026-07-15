@@ -2,7 +2,7 @@
   "name": "specmark",
   "description": "规格驱动变更工作流，七阶段(explore/clarify/propose/analyze/apply/converge/archive)。触发：生成 proposal/design/tasks、实施任务、归档 change、提到 specmark 工作流。",
   "license": "MIT",
-  "version": "0.1.3",
+  "version": "0.1.5",
   "author": "Kirky-X",
   "repo": "https://github.com/Kirky-X/specmark",
   "homepage": "https://github.com/Kirky-X/specmark",
