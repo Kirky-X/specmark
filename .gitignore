@@ -2,6 +2,7 @@
 .venv
 specmark/changes/*
 specmark/archive/*
+specmark/.locks/
 temp
 .gitnexus
 
