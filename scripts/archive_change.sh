@@ -25,7 +25,7 @@ info() { printf '[INFO] %s\n' "$*" >&2; }
 
 usage() {
   cat <<EOF
-Usage: archive_change.sh <change-name> [--sync] [--date YYYY-MM-DD] [-h]
+Usage: archive_change.sh <change-name> [--sync] [--date YYYY-MM-DD] [--dry-run] [-h]
 
 Acquires an exclusive per-change flock, enforces archive read-only sentinel,
 moves specmark/changes/<name> to specmark/archive/<date>-<name>, optionally
@@ -35,6 +35,7 @@ meta.json anchoring the archive to the current git commit SHA.
 Options:
   --sync            Run merge_delta_spec.py for each delta spec under <name>/specs/.
   --date YYYY-MM-DD Override archive date stamp (default: today UTC).
+  --dry-run         Preview what would happen without actually moving files or writing meta.json.
   -h, --help        Show this help.
 EOF
 }
@@ -42,6 +43,7 @@ EOF
 CHANGE_NAME=""
 SYNC=0
 DATE_OVERRIDE=""
+DRY_RUN=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --sync) SYNC=1 ;;
@@ -50,6 +52,7 @@ while [[ $# -gt 0 ]]; do
       [[ $# -gt 0 ]] || { err "--date 需要参数"; exit 1; }
       DATE_OVERRIDE="$1"
       ;;
+    --dry-run) DRY_RUN=1 ;;
     -h|--help) usage; exit 0 ;;
     -*) err "未知选项: $1"; usage; exit 1 ;;
     *)
@@ -149,15 +152,30 @@ if [[ $SYNC -eq 1 ]]; then
         err "非法 capability 目录名: $cap"
         exit 1
       fi
-      info "sync delta → $main_spec"
-      python3 "$SCRIPT_DIR/merge_delta_spec.py" \
-        --main "$main_spec" --delta "$delta" --out "$main_spec" \
-        || { err "delta 合并失败: $delta"; exit 1; }
+      if [[ $DRY_RUN -eq 1 ]]; then
+        info "[dry-run] 将同步 delta → $main_spec"
+      else
+        info "sync delta → $main_spec"
+        python3 "$SCRIPT_DIR/merge_delta_spec.py" \
+          --main "$main_spec" --delta "$delta" --out "$main_spec" \
+          || { err "delta 合并失败: $delta"; exit 1; }
+      fi
     done
     SYNC_RESULT="已同步 ${#DELTA_SPECS[@]} 个 spec"
   else
     SYNC_RESULT="--sync 但无 delta spec"
   fi
+fi
+
+# dry-run 模式：预览后退出
+if [[ $DRY_RUN -eq 1 ]]; then
+  printf '## 归档预览 (dry-run)\n\n'
+  printf '**变更：** %s\n' "$CHANGE_NAME"
+  printf '**将归档到：** specmark/archive/%s-%s/\n' "$DATE" "$CHANGE_NAME"
+  printf '**Commit SHA：** %s\n' "${COMMIT_JSON//\"/}"
+  printf '**Sync：** %s\n' "$SYNC_RESULT"
+  printf '\n[dry-run] 未执行实际操作。去掉 --dry-run 以执行归档。\n'
+  exit 0
 fi
 
 # 执行移动（原子）
