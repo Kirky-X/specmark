@@ -1,6 +1,6 @@
 # Specmark — Specification-Driven Change Workflow Skill
 
-[中文](README.md)
+[中文](README.md) | English
 
 [![GitHub Release](https://img.shields.io/github/v/release/Kirky-X/specmark?style=flat-square)](https://github.com/Kirky-X/specmark/releases) [![GitHub License](https://img.shields.io/github/license/Kirky-X/specmark?style=flat-square)](LICENSE)
 
