@@ -157,7 +157,7 @@ flowchart TD
 
 ## 结束探索
 
-探索完成后，自动衔接下一阶段：
+探索完成后，自动衔接下一阶段（受自动链短路机制影响，见 SKILL.md「自动链短路」节）：
 
 ```mermaid
 flowchart TD

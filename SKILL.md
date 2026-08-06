@@ -1,7 +1,7 @@
 ---
 name: specmark
-description: "规格驱动变更工作流，七阶段(explore/clarify/propose/analyze/apply/converge/archive)。触发：生成 proposal/design/tasks、实施任务、归档 change、提到 specmark 工作流。"
-argument-hint: "[explore|clarify|propose|analyze|apply|converge|archive]"
+description: "规格驱动变更工作流，八阶段(explore/clarify/propose/analyze/apply/converge/archive/status)。触发：生成 proposal/design/tasks、实施任务、归档 change、查看状态、提到 specmark 工作流。"
+argument-hint: "[explore|clarify|propose|analyze|apply|converge|archive|status]"
 license: MIT
 ---
 
@@ -20,12 +20,15 @@ license: MIT
 | `apply`    | 按 tasks.md 实施任务，逐条勾选                                         | `references/apply.md`    |
 | `converge` | 收敛：自动链 apply→converge 衔接点，对比代码与 spec，append 缺漏任务   | `references/converge.md` |
 | `archive`  | 归档已完成变更（`--sync` 启用 delta spec 同步到主 specs）              | `references/archive.md`  |
+| `status`   | 只读查询活动变更与历史归档概览                                          | `references/status.md`   |
 
-**Flags 速查**：
+**Flags 速记**：
 
 - `apply --auto-commit`：每任务完成后自动 `git commit`（默认关闭，不破现有行为；详见 `references/apply.md`）。
 - `archive --sync`：归档时把 delta spec 同步到 `specmark/specs/<cap>/spec.md`（由 `scripts/merge_delta_spec.py` 确定性合并，不启动 LLM；详见 `references/archive.md`）。
 - **归档只读**：`specmark/archive/` 由 `scripts/archive_change.sh` 维护 `.readonly` 哨兵 + change 级 flock + commit SHA 锚定；既有归档条目禁止修改，只允许追加。
+- **归档预览**：`archive --dry-run` 预览归档结果而不执行实际操作（详见 `references/archive.md`）。
+- **确定性工具**：`scripts/check_phase.sh` 提供阶段完成判定（artifacts/tasks/converge-readiness/archive-readiness/complexity），`scripts/status.sh` 提供全局状态查询，`scripts/check_refs.py` 提供跨文件引用一致性 lint。
 
 ## 调用示例
 
@@ -57,9 +60,10 @@ flowchart LR
 **🔴 CHECKPOINT · 🛑 STOP：解析 `$ARGUMENTS[0]` 后、进入子命令流程前，先确认子命令选择正确（尤其自然语言意图需用 AskUserQuestion 工具与用户确认），避免误路由后回滚成本。**
 
 1. 解析 `$ARGUMENTS[0]`：
-   - 合法值（`explore`/`clarify`/`propose`/`analyze`/`apply`/`converge`/`archive`）→ 进入步骤 2
+   - 合法值（`explore`/`clarify`/`propose`/`analyze`/`apply`/`converge`/`archive`/`status`）→ 进入步骤 2
    - 缺失或拼写错误（如 `/specmark`、`/specmark foobar`）→ 输出上方路由表，请用户选择后停止
    - 自然语言意图（如「我还没想好」「帮我梳理思路」「探讨方案」）→ 用 **AskUserQuestion 工具**确认是否进入 `explore`（只读思考模式），不自动路由也不直接列表
+   - `status` → Read `references/status.md`，运行 `scripts/status.sh` 展示状态后停止（不进入自动链）
 2. **Read `references/<子命令>.md`**，按其 Steps + Guardrails 执行。
 3. 所有变更管理操作（创建 change 目录、读取任务状态、归档）通过 AI agent 的文件系统工具（mkdir/Write/Read/Glob/mv）直接操作 `specmark/` 工作目录完成。
 
@@ -74,6 +78,7 @@ flowchart LR
 | "开始实施 / 做下一个任务 / 继续这个 change" | `apply`    |
 | "实施完了 / 对比代码和 spec / 补漏"         | `converge` |
 | "这个 change 做完了 / 归档 / 收尾"          | `archive`  |
+| "当前状态 / 有哪些变更 / 进度如何"             | `status`   |
 | "我还没想好 / 先聊聊"                       | `explore`  |
 
 > **注意：** 自动链生效时，输入 `explore` 会依次自动执行 clarify → propose → analyze → apply → converge → 提问下一步。用户可在任意阶段发出新指令中断链路。
@@ -164,6 +169,22 @@ flowchart TD
 - 其他操作
 
 **用户可随时中断自动链。** 阶段执行中用户发出新指令时，立即停止当前阶段并响应用户。
+
+### 自动链短路（复杂度自适应）
+
+完整七阶段适合复杂变更，但对简单变更（单文件、<3 行改动、typo 修复）过重。自动链启动时做复杂度快评，按需缩短链路：
+
+| 复杂度 | 判定条件 | 链路 |
+|---------|----------|------|
+| **简单** | 单文件、任务数 ≤2、无跨模块影响 | `propose` → `apply`（跳过 clarify/analyze/converge） |
+| **中等** | 多文件但任务数 <5、单模块内 | `propose` → `analyze` → `apply` → `converge`（跳过 clarify） |
+| **复杂** | 任务数 ≥5 或跨 ≥3 模块或多能力域 | 完整七阶段 |
+
+**判定由 `scripts/check_phase.sh complexity <name>` 确定性执行**（检查任务数、模块数、proposal scope 宽度）。
+
+**用户可显式覆盖**：如「我知道这很简单，但走完整流程」→ 强制完整链路；或「这个很复杂但直接做」→ 强制短路。
+
+**短路不跳过 apply 的关键审查**（`references/apply.md` 实施前 4 项检查始终执行）。
 
 ## 不要做什么（反例黑名单）
 
