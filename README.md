@@ -1,6 +1,6 @@
 # Specmark —— 规格驱动变更工作流技能
 
-[English](README_EN.md)
+中文 | [English](README_EN.md)
 
 [![GitHub Release](https://img.shields.io/github/v/release/Kirky-X/specmark?style=flat-square)](https://github.com/Kirky-X/specmark/releases) [![GitHub License](https://img.shields.io/github/license/Kirky-X/specmark?style=flat-square)](LICENSE)
 
@@ -10,7 +10,7 @@ specmark 是**纯文档型 skill**，不依赖任何外部 CLI：所有变更管
 
 ## 功能特性
 
-- **七阶段 spec-driven 工作流**：探索 → 澄清 → 提案 → 分析 → 实施 → 收敛 → 归档，非强制线性，可按需跳转
+- **七阶段 spec-driven 工作流**：探索 → 澄清 → 提案 → 分析 → 实施 → 收敛 → 归档，非强制线性，可按需跳转（加 `status` 查询为八子命令）
 - **自动执行链**：阶段间自动衔接（explore→clarify→propose→analyze→apply→converge→提问），无需手动逐步调用
 - **一步生成全套产物**：`propose` 单次产出 `proposal.md` + `design.md` + `tasks.md`
 - **长程变更自动生成 delta spec**：任务数 ≥5 或跨 ≥3 模块时，自动在 `specs/<capability>/spec.md` 生成可验证需求规格
@@ -21,7 +21,7 @@ specmark 是**纯文档型 skill**，不依赖任何外部 CLI：所有变更管
 - **收敛对账**：`converge` 对比代码与 spec（优先用 delta spec 验收标准），append-only 追加遗漏任务
 - **归档时 delta spec 评估**：`archive` 的 `--sync` flag 可将 delta spec 同步到 `specmark/specs/` 主规格
 - **Mermaid 流程图**：阶段协作链路、自动执行链、调用示例均以 Mermaid 图表可视化
-- **自动链失败模式**：7 种失败条件预定义处理路径（analyze CRITICAL 暂停、converge 循环上限 3 次等）
+- **自动链短路**：简单变更自动跳过非必要阶段（clarify/analyze/converge），由 `scripts/check_phase.sh complexity` 确定性判定
 - **统一入口**：单一 skill 入口，子命令通过 `$ARGUMENTS[0]` 路由
 
 ## 安装
@@ -87,6 +87,18 @@ cd specmark
 
 Specmark 作为 skill 被 agent 加载后，通过 `$ARGUMENTS[0]` 选择子命令，也支持自然语言意图触发。子命令详细描述与用户意图路由见 [SKILL.md 路由表](./SKILL.md)。
 
+### 快速开始（3 步）
+
+```text
+/specmark explore          # 梳理想法、探讨方案（只读）
+/specmark propose my-feat  # 生成 proposal + design + tasks 全套产物
+/specmark apply            # 按 tasks.md 逐条实施
+```
+
+就这么简单。clarify / analyze / converge / archive 按需使用，status 随时查看进度。
+
+### 子命令速查
+
 | 子命令     | 一句话功能                                                |
 | ---------- | --------------------------------------------------------- |
 | `explore`  | 只读探索/思考模式，梳理想法、对比选项、澄清需求           |
@@ -96,6 +108,7 @@ Specmark 作为 skill 被 agent 加载后，通过 `$ARGUMENTS[0]` 选择子命�
 | `apply`    | 按 tasks.md 实施任务，逐条勾选                            |
 | `converge` | 收敛：apply 完成后对比代码与 spec，append 缺漏任务        |
 | `archive`  | 归档已完成变更，含 delta spec 同步评估                    |
+| `status`   | 只读查询活动变更与历史归档概览                          |
 
 ### 调用示例
 
@@ -119,6 +132,7 @@ Specmark 作为 skill 被 agent 加载后，通过 `$ARGUMENTS[0]` 选择子命�
 「开始实施 / 做下一个任务」       → apply
 「实施完了 / 对比代码和 spec」    → converge
 「这个 change 做完了 / 归档」     → archive
+「当前状态 / 有哪些变更」         → status
 「我还没想好 / 先聊聊」           → explore（用 AskUserQuestion 确认）
 ```
 
@@ -137,6 +151,8 @@ Specmark 作为 skill 被 agent 加载后，通过 `$ARGUMENTS[0]` 选择子命�
 | [`apply.md`](references/apply.md)         | apply 子命令流程（按 tasks.md 实施）                 |
 | [`converge.md`](references/converge.md)   | converge 子命令流程（收敛代码与 spec 缺口）          |
 | [`archive.md`](references/archive.md)     | archive 子命令流程（归档 + delta spec 评估）         |
+| [`status.md`](references/status.md)       | status 子命令流程（全局状态查询）                    |
+| [`troubleshooting.md`](references/troubleshooting.md) | 常见问题与恢复指南                            |
 
 ### `specmark/` —— 变更与规格存储
 

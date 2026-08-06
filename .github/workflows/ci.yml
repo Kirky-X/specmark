@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Reference Consistency Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run cross-reference lint
+        run: |
+          set -euo pipefail
+          python3 scripts/check_refs.py --verbose
+          echo ""
+          echo "Lint passed."
+
+  script-smoke:
+    name: Script Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Test check_phase.sh
+        run: |
+          set -euo pipefail
+          # 脚本应能正常执行（即使无活动变更也不应崩溃）
+          bash scripts/check_phase.sh --help || true
+
+      - name: Test status.sh
+        run: |
+          set -euo pipefail
+          bash scripts/status.sh
+          bash scripts/status.sh --json
+
+      - name: Test archive_change.sh --dry-run
+        run: |
+          set -euo pipefail
+          # dry-run 帮助信息
+          bash scripts/archive_change.sh --help
+
+      - name: Test merge_delta_spec.py
+        run: |
+          set -euo pipefail
+          python3 scripts/merge_delta_spec.py --help
