@@ -10,7 +10,17 @@
 
 1. **验证 apply 已完成**
 
-   读 `tasks.md`。若任何任务在现有 `## Phase N: Convergence` 节外是 `- [ ]`，暂停并建议："Apply 未完成（N 个任务开放）。先完成 `/specmark apply` 再 converge。"不继续。
+   **必须**调用确定性脚本检查 converge 就绪状态（规则 3：确定性逻辑禁止交给模型）：
+
+   ```bash
+   bash scripts/check_phase.sh converge-readiness <name>
+   ```
+
+   脚本输出 JSON：
+   - `ready=true`：所有原始任务已完成，可进入 converge
+   - `ready=false` + `reason`：不能进入 converge 的原因（如仍有原始任务未完成）
+
+   若 `ready=false`，暂停并建议：“Apply 未完成（`<reason>`）。先完成 `/specmark apply` 再 converge。”不继续。
 
 2. **读取产物与已实施代码（用 `git diff` 做 drift 基线）**
 

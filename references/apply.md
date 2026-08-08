@@ -23,9 +23,18 @@
 
    读 `specmark/changes/<name>/tasks.md` 并检查复选框状态（`- [ ]` 未完成 / `- [x]` 完成）以了解进度。
 
+   同时**必须**调用确定性脚本获取精确任务计数（规则 3：确定性逻辑禁止交给模型）：
+
+   ```bash
+   bash scripts/check_phase.sh tasks <name>
+   ```
+
+   脚本输出 JSON，含 `total`、`completed`、`remaining`、`original_total`、`original_completed`、`convergence_total`、`convergence_completed`、`all_original_done`、`all_done`。用这些数值而非手动计数。
+
    这告诉你：
    - `schemaName`：使用的工作流（通常 "spec-driven"）
    - 哪个产物含任务（spec-driven 通常 `tasks.md`）
+   - 精确的任务进度计数（由脚本计算）
 
 3. **读取 apply 上下文**
 
@@ -51,11 +60,13 @@
 
 5. **显示当前进度**
 
-   显示：
+   基于步骤 2 的 `check_phase.sh tasks` 输出显示：
    - 使用 schema
-   - 进度："N/M 任务完成"
+   - 进度："N/M 任务完成"（用脚本的 `completed`/`total` 值）
+   - 原始任务 vs 收敛任务进度（用脚本的 `original_*` 和 `convergence_*` 值）
    - 剩余任务概览
-   - 当前状态指引
+   - 当前状态指引（用脚本的 `all_original_done`/`all_done` 判断）
+   - 若 `all_done=true`：所有任务已完成，建议归档
 
 6. **实施任务（循环直到完成或阻塞）**
 

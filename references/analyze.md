@@ -42,6 +42,22 @@
 
    若超过 50 个，保留 50 个最高严重度（CRITICAL → LOW）并追加末行：`... 还有 N 个发现已抑制（修复 CRITICAL/HIGH 后重跑 analyze）`。
 
+5b. **跨文件引用一致性检查（确定性脚本）**
+
+   在完成 6 个检测 pass 后，**必须**调用确定性脚本检查 specmark 引用文件的跨文件引用完整性：
+
+   ```bash
+   python3 scripts/check_refs.py --root <project-root> --json
+   ```
+
+   脚本检测：
+   - 跨文件 section 引用（如 `propose.md §2`）是否指向真实存在的章节
+   - 跨文件 line 引用（如 `converge.md line 79-83`）是否指向有效行范围
+   - 共享概念在多文件间的一致性（如禁用短语清单、长程判定条件）
+   - reference 文件是否在 SKILL.md 中被引用
+
+   将脚本发现合并到分析报告中（ERROR 级映射为 HIGH 严重度，WARN 级映射为 MEDIUM）。
+
 6. **输出报告 —— 只读，不写文件**
 
    把报告打印到对话。**不要**写盘，**不要**编辑任何产物。用户若想应用修复，跑 `propose`（重新生成）或 `converge`（apply 后）。

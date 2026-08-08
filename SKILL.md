@@ -28,7 +28,17 @@ license: MIT
 - `archive --sync`：归档时把 delta spec 同步到 `specmark/specs/<cap>/spec.md`（由 `scripts/merge_delta_spec.py` 确定性合并，不启动 LLM；详见 `references/archive.md`）。
 - **归档只读**：`specmark/archive/` 由 `scripts/archive_change.sh` 维护 `.readonly` 哨兵 + change 级 flock + commit SHA 锚定；既有归档条目禁止修改，只允许追加。
 - **归档预览**：`archive --dry-run` 预览归档结果而不执行实际操作（详见 `references/archive.md`）。
-- **确定性工具**：`scripts/check_phase.sh` 提供阶段完成判定（artifacts/tasks/converge-readiness/archive-readiness/complexity），`scripts/status.sh` 提供全局状态查询，`scripts/check_refs.py` 提供跨文件引用一致性 lint。
+- **确定性工具（必须调用，禁止手动替代）**：
+
+  | 脚本 | 用途 | 何时调用 | 子命令 |
+  |------|------|----------|--------|
+  | `scripts/check_phase.sh` | 阶段完成确定性判定 | propose/apply/converge/archive 各阶段 | `complexity` / `tasks` / `converge-readiness` / `archive-readiness` / `artifacts` |
+  | `scripts/status.sh` | 全局状态查询 | status 子命令 | `--json` 可选 |
+  | `scripts/check_refs.py` | 跨文件引用一致性 lint | analyze 阶段、修改 reference 文件后 | `--root` / `--json` / `--verbose` |
+  | `scripts/archive_change.sh` | 归档执行器（含 flock + 只读强制） | archive 子命令步骤 5 | `--sync` / `--date` / `--dry-run` |
+  | `scripts/merge_delta_spec.py` | delta spec 确定性合并 | archive --sync 时由 archive_change.sh 自动调用 | `--main` / `--delta` / `--out` / `--dry-run` |
+
+  > **规则 3 对齐**：上述脚本覆盖的判定逻辑（任务计数、复杂度评估、归档就绪、引用一致性）属于确定性逻辑，禁止 agent 手动读文件后自行计算。
 
 ## 调用示例
 
@@ -65,7 +75,16 @@ flowchart LR
    - 自然语言意图（如「我还没想好」「帮我梳理思路」「探讨方案」）→ 用 **AskUserQuestion 工具**确认是否进入 `explore`（只读思考模式），不自动路由也不直接列表
    - `status` → Read `references/status.md`，运行 `scripts/status.sh` 展示状态后停止（不进入自动链）
 2. **Read `references/<子命令>.md`**，按其 Steps + Guardrails 执行。
-3. 所有变更管理操作（创建 change 目录、读取任务状态、归档）通过 AI agent 的文件系统工具（mkdir/Write/Read/Glob/mv）直接操作 `specmark/` 工作目录完成。
+3. 所有变更管理操作（创建 change 目录、读取任务状态、归档）通过 AI agent 的文件系统工具（mkdir/Write/Read/Glob/mv）直接操作 `specmark/` 工作目录完成。**阶段判定与状态计算必须调用 `scripts/` 下的确定性脚本**，不由 agent 手动读文件后计算。各阶段脚本调用点：
+
+   | 阶段 | 必须调用的脚本 |
+   |------|------------------|
+   | propose | `scripts/check_phase.sh complexity <name>`（产物完成后评估复杂度） |
+   | apply | `scripts/check_phase.sh tasks <name>`（检查状态 + 显示进度） |
+   | converge | `scripts/check_phase.sh converge-readiness <name>`（验证 apply 完成） |
+   | archive | `scripts/check_phase.sh artifacts <name>` + `scripts/check_phase.sh archive-readiness <name>` + `scripts/archive_change.sh`（执行归档） |
+   | analyze | `scripts/check_refs.py --root <project-root>`（跨文件引用一致性） |
+   | status | `scripts/status.sh`（全局状态查询） |
 
 ## 子命令选用指南
 
@@ -198,3 +217,4 @@ flowchart TD
 | 4   | `apply` 跳过未完成任务直接做下一个                     | 顺序执行是硬约束；跳过会让下游任务依赖缺失                          | 严格按 `tasks.md` 顺序；遇阻则 PAUSE，不跳过                                       |
 | 5   | `converge` 改写已有任务而非 append                     | append-only 是硬约束；改写会让历史任务不可追溯                      | 仅在 `## Phase N: Convergence` 段追加新任务                                        |
 | 6   | 在 `tasks.md` 留 `TBD` / `TODO` / "as needed" 等占位符 | 占位符让 apply 中途停滞；任务必须可执行                             | 拆为具体子任务，或写到 `proposal.md` 的 `## NEEDS CLARIFICATION`                   |
+| 7   | 手动读文件计算任务数/复杂度/归档就绪状态              | 违反规则 3（确定性逻辑禁止交给模型）；agent 计数可能出错          | 调用 `scripts/check_phase.sh` 对应子命令获取 JSON 结果                            |

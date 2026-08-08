@@ -25,12 +25,18 @@
 
 2. **检查产物完成状态**
 
-   用 **Glob 工具**检查 `specmark/changes/<name>/` 下产物文件存在性：`proposal.md` / `design.md` / `tasks.md` / `specs/`（`specs/` 目录用 Glob `specmark/changes/<name>/specs/**/*.md` 检查是否存在 delta spec 文件）。
+   **必须**调用确定性脚本检查产物完整性（规则 3：确定性逻辑禁止交给模型）：
+
+   ```bash
+   bash scripts/check_phase.sh artifacts <name>
+   ```
+
+   脚本输出 JSON，含 `proposal`、`design`、`tasks`、`specs`、`spec_count`、`all_present` 字段。`all_present=1` 表示产物完整。
 
    这告诉你：
    - `schemaName`：使用的工作流（从 `tasks.md` 内容推断，若文件存在）
    - `artifacts`：产物文件存在性（`proposal.md` / `design.md` / `tasks.md` 各自存在或缺失）
-   - `specs`：delta spec 是否存在（若存在则列出）
+   - `specs`：delta spec 是否存在（`spec_count` 给出数量）
 
    **若任一产物文件缺失：**
    - 显示警告列出缺失的产物文件
@@ -40,9 +46,18 @@
 
 3. **检查任务完成状态**
 
-   读任务文件（通常 `tasks.md`）检查未完成任务。
+   **必须**调用确定性脚本检查归档就绪状态（规则 3：确定性逻辑禁止交给模型）：
 
-   计数 `- [ ]`（未完成）vs `- [x]`（完成）任务。
+   ```bash
+   bash scripts/check_phase.sh archive-readiness <name>
+   ```
+
+   脚本输出 JSON：
+   - `ready=true` + `total`：所有任务完成，可归档
+   - `ready=false` + `remaining`/`total`：仍有未完成任务
+   - `ready=false` + `reason="missing artifacts"`：产物文件缺失
+
+   也可用 `bash scripts/check_phase.sh tasks <name>` 获取更详细的任务计数（含原始/收敛分类）。
 
    **若发现未完成任务：**
    - 显示警告显示未完成任务数

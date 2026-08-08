@@ -69,14 +69,17 @@
 
    c. **长程变更自动生成 delta spec**（在 tasks.md 完成后评估）
 
-      **复杂度评估**：tasks.md 创建完成后，评估变更是否为长程任务。满足以下任一条件即判定为长程：
-      - tasks.md 中任务数 ≥ 5
-      - 变更跨 ≥ 3 个独立模块/目录
-      - proposal.md 描述涉及多个能力域或子系统
+      **复杂度评估**：tasks.md 创建完成后，**必须**调用确定性脚本评估复杂度（规则 3：确定性逻辑禁止交给模型）：
 
-      **长程变更**：在 `specmark/changes/<name>/specs/` 下为每个受影响的能力域创建 delta spec 文件（`specs/<capability>/spec.md`）。每个 delta spec 描述该能力域在此变更中的**具体需求**——从 proposal.md 的 Scope/Requirements 和 design.md 的 Decision 中提取，聚焦可验证的行为规格（输入→预期输出、边界条件、错误行为）。
+      ```bash
+      bash scripts/check_phase.sh complexity <name>
+      ```
 
-      **短程变更**（任务数 < 5 且影响范围小）：跳过 spec 生成。proposal.md + design.md 已提供足够上下文。
+      脚本输出 JSON，含 `complexity`（`short`/`long`）、`task_count`、`module_count`、`multi_domain` 及三项判定条件。`complexity=long` 即长程变更，需生成 delta spec；`complexity=short` 即短程变更，跳过。
+
+      **长程变更**（脚本输出 `"complexity": "long"`）：在 `specmark/changes/<name>/specs/` 下为每个受影响的能力域创建 delta spec 文件（`specs/<capability>/spec.md`）。每个 delta spec 描述该能力域在此变更中的**具体需求**——从 proposal.md 的 Scope/Requirements 和 design.md 的 Decision 中提取，聚焦可验证的行为规格（输入→预期输出、边界条件、错误行为）。
+
+      **短程变更**（脚本输出 `"complexity": "short"`）：跳过 spec 生成。proposal.md + design.md 已提供足够上下文。
 
       Delta spec 模板见下方 **specs/ 骨架**。完成后显示："Created specs/<capability>/spec.md"
 
@@ -108,7 +111,7 @@ analyze 完成后，展示结果并自动衔接下一步：
 
 - 创建实施所需的全部产物（proposal.md、design.md、tasks.md），遵循下方 **产物模板** 与 **任务编写标准** 章节定义的模板结构
 - **模板指令是约束，不是文件内容** —— 不要把模板注释、示例或占位标记复制进产物；它们指导你写什么，但绝不应出现在输出中
-- 长程变更（任务数 ≥ 5、跨 ≥ 3 模块、或 proposal.md 描述涉及多个能力域或子系统）额外生成 `specs/<capability>/spec.md`；短程变更跳过
+- **长程变更由 `scripts/check_phase.sh complexity` 确定性判定**（任务数 ≥ 5、跨 ≥ 3 模块、或 proposal.md 涉及多个能力域）——不手动评估；脚本输出 `long` 时额外生成 `specs/<capability>/spec.md`；输出 `short` 时跳过
 - 创建新产物前总是读依赖产物（如写 `tasks.md` 前读 `proposal.md` 和 `design.md`）
 - 如果上下文严重不清，问用户 —— 但优先做合理决策保持动量
 - 如果同名变更已存在，问用户想继续它还是新建一个
