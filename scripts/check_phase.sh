@@ -260,16 +260,33 @@ cmd_archive_readiness() {
 cmd_complexity() {
   local tasks_file="$CHANGE_DIR/tasks.md"
   local task_count=0 module_count=0 has_multi_domain=0
+  local domain="code"  # 默认 domain
+
+  # 从 proposal.md 读取 domain 声明
+  if [[ -f "$CHANGE_DIR/proposal.md" ]]; then
+    local domain_match
+    domain_match=$(grep -oP '<!--\s*domain:\s*\K[a-z]+' "$CHANGE_DIR/proposal.md" 2>/dev/null || true)
+    [[ -n "$domain_match" ]] && domain="$domain_match"
+  fi
 
   if [[ -f "$tasks_file" ]]; then
     # 计算任务数
     task_count=$(grep -c '^\- \[[ xX]\]' "$tasks_file" 2>/dev/null || echo 0)
 
-    # 提取文件路径并计算唯一模块数（取路径的第一级目录）
-    local modules
-    modules=$(grep -oP '(?:src/|lib/|app/)?[a-zA-Z0-9_/-]+\.[a-zA-Z]+' "$tasks_file" 2>/dev/null \
-      | sed 's|/[^/]*$||' | sort -u | wc -l)
-    module_count=$modules
+    # 按 domain 计算唯一模块数
+    if [[ "$domain" == "code" ]]; then
+      # code 域：用源码路径正则提取，取第一级目录
+      local modules
+      modules=$(grep -oP '(?:src/|lib/|app/)?[a-zA-Z0-9_/-]+\.[a-zA-Z]+' "$tasks_file" 2>/dev/null \
+        | sed 's|/[^/]*$||' | sort -u | wc -l)
+      module_count=$modules
+    else
+      # 非 code 域：用 `→ ` 后的交付物标识按目录去重计数
+      local modules
+      modules=$(grep -oP '→\s*\K\S+' "$tasks_file" 2>/dev/null \
+        | sed 's|/[^/]*$||' | sort -u | wc -l)
+      module_count=$modules
+    fi
   fi
 
   # 检查 proposal.md 是否涉及多个能力域
@@ -292,6 +309,7 @@ cmd_complexity() {
 {
   "change": "$CHANGE_NAME",
   "complexity": "$complexity",
+  "domain": "$domain",
   "task_count": $task_count,
   "module_count": $module_count,
   "multi_domain": $has_multi_domain,
@@ -303,7 +321,7 @@ cmd_complexity() {
 }
 EOF
 
-  info "复杂度: $complexity (任务: $task_count, 模块: $module_count, 多域: $has_multi_domain)"
+  info "复杂度: $complexity (domain: $domain, 任务: $task_count, 模块: $module_count, 多域: $has_multi_domain)"
   return 0
 }
 

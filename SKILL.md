@@ -18,7 +18,7 @@ license: MIT
 | `propose`  | 一步生成 proposal + design + tasks 全套产物（长程变更含 delta spec）   | `references/propose.md`  |
 | `analyze`  | 跨产物一致性分析，自动链 propose→analyze 衔接点（只读质量门）          | `references/analyze.md`  |
 | `apply`    | 按 tasks.md 实施任务，逐条勾选                                         | `references/apply.md`    |
-| `converge` | 收敛：自动链 apply→converge 衔接点，对比代码与 spec，append 缺漏任务   | `references/converge.md` |
+| `converge` | 收敛：自动链 apply→converge 衔接点，对比交付物与 spec，append 缺漏任务   | `references/converge.md` |
 | `archive`  | 归档已完成变更（`--sync` 启用 delta spec 同步到主 specs）              | `references/archive.md`  |
 | `status`   | 只读查询活动变更与历史归档概览                                          | `references/status.md`   |
 
@@ -39,6 +39,29 @@ license: MIT
   | `scripts/merge_delta_spec.py` | delta spec 确定性合并 | archive --sync 时由 archive_change.sh 自动调用 | `--main` / `--delta` / `--out` / `--dry-run` |
 
   > **规则 3 对齐**：上述脚本覆盖的判定逻辑（任务计数、复杂度评估、归档就绪、引用一致性）属于确定性逻辑，禁止 agent 手动读文件后自行计算。
+
+## Domain（领域类型）
+
+每个 specmark 变更都属于一个领域（domain）。domain 决定任务格式、apply 执行策略和 converge 验证方式。
+
+| domain | 含义 | 交付物标识示例 |
+|--------|------|----------------|
+| `code` | 软件开发（默认） | `src/auth/login.ts` |
+| `doc` | 文档/内容创作 | `docs/chapter-3.md` |
+| `event` | 活动策划/执行 | `venue-contract-signed` |
+| `design` | 设计项目 | `designs/homepage-v2.fig` |
+| `research` | 研究项目 | `research/market-analysis.md` |
+| `general` | 通用 | `stakeholder-approval` |
+
+**声明方式**：在 proposal.md 头部加 `<!-- domain: <type> -->`（HTML 注释，不影响渲染）。
+
+**自动推断规则**（无显式声明时）：
+- 任务描述含源码扩展名（`.ts/.py/.go/.rs/.java/.js/.jsx/.tsx/.c/.cpp/.h`）→ `code`
+- 任务描述含 `→ <path>` 且目标为 `.md/.txt/.docx` → `doc`
+- 任务描述含 `→ <path>` 且目标为 `.fig/.sketch/.xd` → `design`
+- 任务描述无可验证文件引用 → `general`
+
+默认 domain 为 `code`（向后兼容）。
 
 ## 调用示例
 
@@ -95,7 +118,7 @@ flowchart LR
 | "需求里有模糊点 / 先问清楚再提案"           | `clarify`  |
 | "提案生成后 / 检查产物一致性 / 质量门"      | `analyze`  |
 | "开始实施 / 做下一个任务 / 继续这个 change" | `apply`    |
-| "实施完了 / 对比代码和 spec / 补漏"         | `converge` |
+| "实施完了 / 对比交付物和 spec / 补漏"         | `converge` |
 | "这个 change 做完了 / 归档 / 收尾"          | `archive`  |
 | "当前状态 / 有哪些变更 / 进度如何"             | `status`   |
 | "我还没想好 / 先聊聊"                       | `explore`  |
@@ -218,3 +241,4 @@ flowchart TD
 | 5   | `converge` 改写已有任务而非 append                     | append-only 是硬约束；改写会让历史任务不可追溯                      | 仅在 `## Phase N: Convergence` 段追加新任务                                        |
 | 6   | 在 `tasks.md` 留 `TBD` / `TODO` / "as needed" 等占位符 | 占位符让 apply 中途停滞；任务必须可执行                             | 拆为具体子任务，或写到 `proposal.md` 的 `## NEEDS CLARIFICATION`                   |
 | 7   | 手动读文件计算任务数/复杂度/归档就绪状态              | 违反规则 3（确定性逻辑禁止交给模型）；agent 计数可能出错          | 调用 `scripts/check_phase.sh` 对应子命令获取 JSON 结果                            |
+| 8   | 非 coding 场景用 code 域格式写任务                     | 交付物标识格式不匹配导致 apply 无法执行、converge 无法对账        | propose 时声明 `<!-- domain: <type> -->`，用对应域的交付物标识格式（见 propose.md） |

@@ -17,6 +17,8 @@ specmark 工作流中常见场景的恢复方法。
 | 自动链误路由（进了错误子命令） | 发出新指令中断链路 → 显式调用正确子命令 |
 | delta spec 合并失败 | 检查 `scripts/merge_delta_spec.py` 输出 → 确认 delta spec 格式正确 → 重跑 `--dry-run` |
 | 锁竞争失败（archive 退出码 2） | 等待其他进程完成 → 重试，或检查 `specmark/.locks/` 清理残留锁 |
+| apply 非 code 域阻塞（无可验证交付物） | PAUSE → 检查 proposal.md 的 domain 声明 → 确认任务含 `→ <交付物标识>` → 恢复 apply |
+| converge 非 code 域对账失败 | 检查 drift 基线是否匹配 domain → 确认交付物实际存在 → 用对应域的对账策略重跑 |
 
 ---
 
@@ -109,6 +111,40 @@ rm specmark/.locks/<name>.lock
 # 重试归档
 bash scripts/archive_change.sh <name> --sync
 ```
+
+### apply 非 code 域阻塞恢复
+
+**症状：** apply 在非 code 域执行时 PAUSE，报"无可验证交付物"。
+
+**恢复步骤：**
+
+1. 检查 `proposal.md` 头部是否有 `<!-- domain: <type> -->` 声明
+   - 无声明 → 默认 `code` 域，可能误判。添加正确的 domain 声明
+2. 检查 `tasks.md` 中阻塞任务是否含 `→ <交付物标识>`
+   - 缺失 → 用 `/specmark propose` 修正 tasks.md，补充交付物标识
+3. 确认 domain 与任务格式匹配（见 propose.md 各域交付物标识表）
+4. 恢复 `/specmark apply`
+
+**常见错误：**
+- `doc` 域任务未写 `→ docs/xxx.md` → 被当作 code 域处理，找不到源码文件
+- `event` 域任务未写行动标识 → apply 无法判定交付物
+
+### 非 code 域 converge 对账
+
+**症状：** converge 在非 code 域执行时无法对账，或 drift 基线不适用。
+
+**恢复步骤：**
+
+1. 确认 proposal.md 的 domain 声明正确
+2. 检查 converge 使用的 drift 基线是否匹配 domain：
+   - `code` → git diff
+   - `doc` → 内容 diff（对比交付文档与 delta spec）
+   - `event` → 行动记录对比
+   - `design` → 设计稿对比
+   - `research` → 报告对比
+   - `general` → 交付物描述对比
+3. 若基线不匹配，检查 converge.md 步骤 2 的 domain 分派表是否已更新
+4. 非 code 域的 converge 对账以交付物标识定位实际产出，而非源码路径
 
 ---
 

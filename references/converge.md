@@ -1,6 +1,6 @@
-# Converge — 归档前把任务与已实施代码对账
+# Converge — 归档前把任务与交付物对账
 
-`apply`（所有任务标记 `- [x]`）与 `archive` 之间的可选步骤。Converge 把实际代码与变更产物对比（若存在 delta spec 则优先对比 spec），找出实施偏离或未覆盖需求的缺口，并**追加**缺失任务到 `tasks.md` 的新 `## Phase N: Convergence` 节。仅追加：converge 绝不重写或删除已有任务。
+`apply`（所有任务标记 `- [x]`）与 `archive` 之间的可选步骤。Converge 把实际交付物与变更产物对比（若存在 delta spec 则优先对比 spec），找出实施偏离或未覆盖需求的缺口，并**追加**缺失任务到 `tasks.md` 的新 `## Phase N: Convergence` 节。仅追加：converge 绝不重写或删除已有任务。
 
 **定位**：在 `apply` 报告所有任务完成后、`archive` 之前。变更非平凡且实施可能已偏离 spec 时使用（如范围蔓延、跳过边界 case、实施中所做决策未回传）。
 
@@ -22,22 +22,33 @@
 
    若 `ready=false`，暂停并建议：“Apply 未完成（`<reason>`）。先完成 `/specmark apply` 再 converge。”不继续。
 
-2. **读取产物与已实施代码（用 `git diff` 做 drift 基线）**
+2. **读取产物与已实施交付物（drift 基线按 domain 选择）**
 
-   完整读 `proposal.md`、`design.md`、`tasks.md`。检查 `specmark/changes/<name>/specs/` 是否存在 delta spec 文件——若存在，优先读取 delta spec 作为对比的规格依据（delta spec 定义了该能力域的可验证需求）。然后定位并读任务触及的代码（任务描述中的文件路径 + 标准源码根）。对比是代码对 spec（有 delta spec 时）或代码对 proposal/design（无 delta spec 时），不是 spec 对 spec。
+   完整读 `proposal.md`、`design.md`、`tasks.md`。检查 `specmark/changes/<name>/specs/` 是否存在 delta spec 文件——若存在，优先读取 delta spec 作为对比的规格依据（delta spec 定义了该能力域的可验证需求）。然后定位并读任务触及的交付物（任务描述中的交付物标识 + 标准根目录）。对比是交付物对 spec（有 delta spec 时）或交付物对 proposal/design（无 delta spec 时），不是 spec 对 spec。
 
    **验收标准结构化提取**（有 delta spec 时）：从每个 delta spec 的 `**验收标准：**` 节提取具体可测试条件，构建验收清单。每个条件标记为：
 
    | 状态 | 含义 |
    |------|------|
-   | ✓ PASS | 代码行为符合验收条件 |
-   | ✗ FAIL | 代码行为与验收条件矛盾 |
-   | ? UNKNOWN | 无法从代码确定（需人工确认） |
-   | — SKIP | 与本次代码变更无关的验收条件 |
+   | ✓ PASS | 交付物内容/行为符合验收条件 |
+   | ✗ FAIL | 交付物内容/行为与验收条件矛盾 |
+   | ? UNKNOWN | 无法从交付物确定（需人工确认） |
+   | — SKIP | 与本次变更无关的验收条件 |
 
    验收清单作为缺口扫描的结构化补充——缺口扫描发现「哪里不对」，验收清单确认「哪些规格已满足」。两者共同输出到收敛报告。
 
-   **drift 基线（git 集成）**：若仓库是 git，用 `git diff` 确定本变更实际改动的代码范围，作为缺口扫描的事实基线，避免遗漏未声明改动或误把无关文件纳入对比：
+   **drift 基线（按 domain 选择）**：根据 proposal.md 的 `<!-- domain: <type> -->` 声明选择基线策略：
+
+   | domain | drift 基线策略 | 具体方法 |
+   |--------|---------------|----------|
+   | `code` | git diff | `git diff --name-only "$BASE"...HEAD -- <源码根>` |
+   | `doc` | 内容 diff | 对比交付文档与 delta spec 的内容结构差异 |
+   | `event` | 行动记录 | 对比行动记录与 spec 的预期结果 |
+   | `design` | 设计稿 diff | 对比设计产出与 spec 的视觉/交互规格 |
+   | `research` | 报告 diff | 对比研究报告与 spec 的结论标准 |
+   | `general` | 交付物描述 | 对比实际交付与 spec 的验收条件 |
+
+   **`code` 域详细流程（git 集成）**：
 
    ```bash
    # 优先基线：归档锚定的 commit（若 change 的 meta.json 存在 commit_sha）；否则用变更开始前的 commit
@@ -45,20 +56,20 @@
    git diff --name-only "$BASE"...HEAD -- <任务描述涉及的源码根>
    ```
 
-   - 用 diff 输出的文件清单（而非仅 `tasks.md` 列出的路径）作为代码侧扫描范围——apply 实施中可能产生任务描述未列的连带改动，`git diff` 能暴露这些 drift。
-   - 非 git 仓库：回退到任务描述中的文件路径 + 标准源码根，并在收敛叙述中标注"未用 git diff 基线"。
-   - diff 基线只用于**圈定扫描范围**；缺口的判定仍由步骤 3 的 4-pass 对比（代码行为 vs spec 需求）决定。
+   - 用 diff 输出的文件清单（而非仅 `tasks.md` 列出的路径）作为扫描范围——apply 实施中可能产生任务描述未列的连带改动，drift 基线能暴露这些遗漏。
+   - 非 `code` 域：用交付物标识定位实际产出文件/记录，与 delta spec 或 proposal/design 对比，并在收敛叙述中标注使用的基线类型。
+   - drift 基线只用于**圈定扫描范围**；缺口的判定仍由步骤 3 的 4-pass 对比（交付物行为 vs spec 需求）决定。
 
 3. **跑 4 个缺口类型 pass**
 
-   每个 pass，把代码行为与 spec 陈述的需求/设计对比并记录缺口。
+   每个 pass，把交付物行为与 spec 陈述的需求/设计对比并记录缺口。
 
    | 缺口类型    | 含义                                                   |
    | ----------- | ------------------------------------------------------ |
-   | missing     | Spec 要求 X；代码无 X 的实现                           |
-   | partial     | Spec 要求 X；代码实现了 X 的一部分（缺子 case 或分支） |
-   | contradicts | Spec 说 X；代码做 Y（真正矛盾，非仅不完整）            |
-   | unrequested | 代码做 Z；spec 从未要 Z（范围蔓延 / 投机功能）         |
+   | missing     | Spec 要求 X；交付物无 X 的实现                         |
+   | partial     | Spec 要求 X；交付物实现了 X 的一部分（缺子 case 或分支）|
+   | contradicts | Spec 说 X；交付物做 Y（真正矛盾，非仅不完整）          |
+   | unrequested | 交付物做 Z；spec 从未要 Z（范围蔓延 / 投机功能）       |
 
 4. **为每个缺口分配严重度**
 
@@ -85,7 +96,7 @@
    ```
 
    - 用**下一个可用 T### ID**（不重排已有任务）。
-   - 每个新任务遵循 propose.md 5 元素格式：`- [ ] [T###] [P?] [Story?] Description with file path`。
+   - 每个新任务遵循 propose.md 交付物标识格式：`- [ ] [T###] [P?] [Story?] <描述> → <交付物标识>`。
    - 跳过 LOW 且 `unrequested` 的缺口 —— 记录到收敛叙述（见步骤 6）但不创建任务；用户可接受范围蔓延或另起 follow-up 变更。
    - `contradicts` 缺口总是产出任务，不论严重度（矛盾必须解决，不静默接受）。
 
@@ -140,15 +151,15 @@
 
 - **仅追加** —— 绝不重写、重排或删除已有任务。收敛任务在自己的 `## Phase N: Convergence` 标题下，用下一个可用 ID。
 - **所有原始任务必须 `- [x]`** —— converge 不救援半完成的 apply。若任务仍开放，重定向到 `apply`。
-- **对比代码，不只对比产物** —— 只读 spec 推断缺口会破坏目的。实施才是实际做了什么的真相来源。
+- **对比交付物，不只对比产物** —— 只读 spec 推断缺口会破坏目的。实施才是实际做了什么的真相来源。
 - **有 delta spec 时优先用 spec 对比** —— delta spec 定义了精确的验收标准，比 proposal/design 的描述更直接可检查。
 - **`contradicts` 总产出任务** —— 即使 LOW 严重度矛盾也产出任务；静默接受矛盾会损坏 spec。
 - **`unrequested` LOW 不产出任务** —— 仅记录到叙述。强制清理每个次要范围蔓延会让变更臃肿。
-- **不编辑 proposal.md 或 design.md** —— converge 把任务对账到代码；若 spec 本身错了，那是单独的 propose/explore 决策，不是 converge 行动。
+- **不编辑 proposal.md 或 design.md** —— converge 把任务对账到交付物；若 spec 本身错了，那是单独的 propose/explore 决策，不是 converge 行动。
 - **可重跑** —— 若 apply 关闭 Phase N 任务后出现新漂移，converge 可追加 `## Phase N+1: Convergence`。每次运行是新 phase。
 
 **Fluid Workflow Integration**
 
 - 处于 `apply`（完成）与 `archive` 之间。自动链中由 apply 完成后自动触发。
-- 与 `analyze` 配对：analyze 找 apply 前的 spec↔tasks 漂移；converge 找 apply 后的 tasks↔code 漂移。两者一起覆盖双向。
+- 与 `analyze` 配对：analyze 找 apply 前的 spec↔tasks 漂移；converge 找 apply 后的 tasks↔交付物漂移。两者一起覆盖双向。
 - converge 追加任务后，自动回到 `apply` 关闭它们（循环上限 3 次）；`archive` 仅在所有 phase（含收敛 phase）都 `- [x]` 时运行。

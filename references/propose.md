@@ -17,6 +17,29 @@
 
 **Steps**
 
+0. **确定 domain（领域类型）**
+
+   每个 specmark 变更都属于一个领域（domain）。domain 决定任务格式、apply 执行策略和 converge 验证方式。
+
+   | domain | 含义 | 交付物标识示例 |
+   |--------|------|----------------|
+   | `code` | 软件开发（默认） | `src/auth/login.ts` |
+   | `doc` | 文档/内容创作 | `docs/chapter-3.md` |
+   | `event` | 活动策划/执行 | `venue-contract-signed` |
+   | `design` | 设计项目 | `designs/homepage-v2.fig` |
+   | `research` | 研究项目 | `research/market-analysis.md` |
+   | `general` | 通用 | `stakeholder-approval` |
+
+   **声明方式**：在 proposal.md 头部加 `<!-- domain: <type> -->`（HTML 注释，不影响渲染）。
+
+   **自动推断规则**（无显式声明时）：
+   - 任务描述含源码扩展名（`.ts/.py/.go/.rs/.java/.js/.jsx/.tsx/.c/.cpp/.h`）→ `code`
+   - 任务描述含 `→ <path>` 且目标为 `.md/.txt/.docx` → `doc`
+   - 任务描述含 `→ <path>` 且目标为 `.fig/.sketch/.xd` → `design`
+   - 任务描述无可验证文件引用 → `general`
+
+   默认 domain 为 `code`（向后兼容）。
+
 1. **如果未提供明确输入，询问用户想构建什么**
 
    🔴 CHECKPOINT · 🛑 STOP：在调用 AskUserQuestion 前确认确实缺乏足够信息（变更名或描述均缺失），不要在已有足够上下文时仍反复追问。
@@ -195,19 +218,19 @@ tasks.md 用 **任务编写标准** 的 5 元素格式，按执行顺序列出�
 ## Requirements
 
 ### R-<capability>-001: <需求名>
-<可验证的行为描述：输入→预期输出、边界条件、错误行为>
+<可验证的行为或产出规格：code 域用“输入→预期输出、边界条件、错误行为”；doc 域用“内容结构、覆盖范围”；event 域用“行动→预期结果、时间约束”；design 域用“视觉规格、交互行为”；research 域用“研究问题→结论标准”；general 域用“交付物→验收条件”>
 
 **验收标准：**
 - <具体可测试条件>
 
 ### R-<capability>-002: <需求名>
-<可验证的行为描述>
+<可验证的行为或产出规格>
 
 **验收标准：**
 - <具体可测试条件>
 
 ## Constraints
-<该能力域的约束条件（性能、安全、兼容性等）>
+<该能力域的约束条件（code: 性能/安全/兼容性；doc: 风格/字数/deadline；event: 预算/场地/时间；design: 品牌/平台/可访问性；research: 方法论/数据源；general: 资源/时间）>
 
 ## Out of Scope
 <此变更明确不覆盖的该能力域范围>
@@ -218,6 +241,7 @@ tasks.md 用 **任务编写标准** 的 5 元素格式，按执行顺序列出�
 - 每条 Requirement 必须有明确的验收标准，apply 和 converge 可直接对照检查
 - 不复制 proposal/design 原文；提炼为精确的行为约束
 - capability 命名用 kebab-case，与受影响的模块/子系统对应
+- 各 domain 的验收标准示例见上方模板注释
 
 ---
 
@@ -225,29 +249,51 @@ tasks.md 用 **任务编写标准** 的 5 元素格式，按执行顺序列出�
 
 以下标准在编写 `tasks.md` 时适用。它们是强制性的；`apply` 和 `converge` 都假设任务符合它们。
 
-### 1. 任务格式 — 5 元素
+### 1. 任务格式 — 交付物标识
 
-每个任务行用这个精确形状：
+每个任务行用这个形状：
 
 ```
-- [ ] [T###] [P?] [Story?] Description with file path
+- [ ] [T###] [P?] [Story?] <描述> → <交付物标识>
 ```
 
-| 元素          | 必需 | 含义                                                              |
-| ------------- | ---- | ----------------------------------------------------------------- |
-| `- [ ]`       | 是   | 复选框；完成时由 `apply` 翻转为 `- [x]`                          |
-| `[T###]`      | 是   | 零填充稳定 ID（T001、T002...）。永不重排已有 ID                   |
-| `[P?]`        | 是   | 优先级：P0（阻塞）/ P1（必须）/ P2（可选）。被 converge 使用      |
-| `[Story?]`    | 可选 | 如果变更对应 backlog story，填 story ID                           |
-| Description   | 是   | 祈使句、具体、**必须包含被改动的文件路径**                        |
+| 元素 | 必需 | 含义 |
+|------|------|------|
+| `- [ ]` | 是 | 复选框；完成时由 `apply` 翻转为 `- [x]` |
+| `[T###]` | 是 | 零填充稳定 ID（T001、T002...）。永不重排已有 ID |
+| `[P?]` | 是 | 优先级：P0（阻塞）/ P1（必须）/ P2（可选）。被 converge 使用 |
+| `[Story?]` | 可选 | 如果变更对应 backlog story，填 story ID |
+| `<描述>` | 是 | 祈使句、具体、可验证 |
+| `→ <交付物标识>` | code 域可选，其他域必需 | 任务的交付物目标（文件路径/行动标识/产出描述） |
+
+**各 domain 的交付物标识：**
+
+| domain | 交付物标识格式 | 示例 |
+|--------|----------------|------|
+| `code` | 文件路径（可省略 `→`） | `src/auth/login.ts` |
+| `doc` | 文档路径 | `→ docs/chapter-3.md` |
+| `event` | 行动标识 | `→ venue-contract-signed` |
+| `design` | 设计稿路径 | `→ designs/homepage-v2.fig` |
+| `research` | 报告路径 | `→ research/market-analysis.md` |
+| `general` | 交付物描述 | `→ stakeholder-approval` |
 
 示例：
 
 ```
+# code 域（可省略 →）
 - [ ] [T003] [P1] [AUTH-12] Add rate-limit middleware to src/auth/login.ts (10 req/min/IP)
+
+# doc 域
+- [ ] [T003] [P1] 撰写第 3 章“用户增长策略”初稿 → docs/ch3/growth-strategy.md
+
+# event 域
+- [ ] [T003] [P1] 确认场地合同签署 → venue-contract-signed
+
+# general 域
+- [ ] [T003] [P1] 获取利益相关者签字确认 → stakeholder-approval
 ```
 
-没有文件路径的任务几乎总是规格不足 —— 修描述，不要放宽规则。
+无可验证交付物的任务几乎总是规格不足 —— 修描述，不要放宽规则。
 
 ### 2. 禁止占位符 — 硬规则
 
