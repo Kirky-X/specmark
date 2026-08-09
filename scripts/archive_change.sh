@@ -181,6 +181,18 @@ fi
 # 执行移动（原子）
 mv "$CHANGE_DIR" "$TARGET"
 
+# 清理锁文件
+if [[ -f "$LOCKFILE" ]]; then
+  rm -f "$LOCKFILE"
+fi
+
+# 清理空目录（change 已 mv 走，changes/ 可能变空；锁文件删除后 .locks/ 可能变空）
+for dir in "$ROOT/specmark/changes" "$LOCKS_DIR"; do
+  if [[ -d "$dir" ]] && [[ -z "$(ls -A "$dir" 2>/dev/null)" ]]; then
+    rmdir "$dir" 2>/dev/null || true
+  fi
+done
+
 # 写 meta.json（锚定 commit SHA + 日期）
 META="$TARGET/meta.json"
 SYNC_JSON=$([[ $SYNC -eq 1 ]] && echo true || echo false)

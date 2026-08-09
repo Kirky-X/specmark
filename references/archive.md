@@ -104,6 +104,8 @@
    - **只读强制**：目标 `specmark/archive/<date>-<name>` 已存在时报错退出，拒绝覆盖；
    - `--sync` 时对每个 delta spec 调 `scripts/merge_delta_spec.py`（见步骤 4）；
    - 原子 `mv specmark/changes/<name> → specmark/archive/<date>-<name>`；
+   - 清理锁文件 `specmark/.locks/<name>.lock`；
+   - 清理空父目录：若 `specmark/changes/` 或 `specmark/.locks/` 变空则自动删除；
    - 写 `specmark/archive/<date>-<name>/meta.json`：`{"change": "<name>", "archived_at": "YYYY-MM-DD"(UTC), "commit_sha": "<git HEAD 或 null>", "synced": <bool>}`——把归档锚定到具体 commit。
 
    **关于路径：** 归档目录 `specmark/archive/` 与活动目录 `specmark/changes/` 分离 —— 便于 git ignore 活动 `specmark/changes/` 内容同时保留历史归档可追溯。活动 changes 是工作区产物（可丢弃、可重建），归档是长期历史记录（需版本控制保留）。
