@@ -28,7 +28,7 @@ Specmark is a **pure documentation skill** with no external CLI dependency: all 
 
 ### Option 1: Install via the `skills` package (recommended)
 
-Requires [Node.js](https://nodejs.org/) 18+ and the `skills` npm package (v1.5.12+). `skills` is the CLI of the open agent skills ecosystem and supports 68+ agents (Claude Code / Trae / Cursor / Codex / OpenCode, etc.).
+Requires [Node.js](https://nodejs.org/) 18+ and the `skills` npm package (v1.5.12+). `skills` is the CLI of the open agent skills ecosystem and supports 68+ agents (Claude Code / Codex / Cursor / OpenCode, etc.).
 
 ```bash
 # Install to Claude Code
@@ -37,8 +37,8 @@ npx skills add https://github.com/Kirky-X/specmark.git --agent claude-code -y
 # Equivalent shorthand (owner/repo)
 npx skills add Kirky-X/specmark --agent claude-code -y
 
-# Install to Trae
-npx skills add Kirky-X/specmark --agent trae -y
+# Install to Codex
+npx skills add Kirky-X/specmark --agent codex -y
 
 # List all discoverable skills in the repo (without installing)
 npx skills add https://github.com/Kirky-X/specmark.git --list
@@ -48,7 +48,7 @@ After installation, skill files are placed in the agent's skills directory (the 
 
 ### Option 2: Traditional git clone + install-skill.sh
 
-The repo ships with `scripts/install-skill.sh`, which supports 9 agents (claude / cursor / windsurf / trae / gemini / copilot / opencode / roocode / qoder) for one-shot installation:
+The repo ships with `scripts/install-skill.sh`, which supports 9 agents (claude / cursor / windsurf / codex / gemini / copilot / opencode / roocode / qoder) for one-shot installation:
 
 ```bash
 git clone https://github.com/Kirky-X/specmark.git

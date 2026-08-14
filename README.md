@@ -28,7 +28,7 @@ specmark 是**纯文档型 skill**，不依赖任何外部 CLI：所有变更管
 
 ### 方式一：通过 `skills` 包安装（推荐）
 
-需 [Node.js](https://nodejs.org/) 18+ 和 `skills` npm 包（v1.5.12+）。`skills` 是 open agent skills 生态的 CLI，支持 68+ agents（Claude Code / Trae / Cursor / Codex / OpenCode 等）。
+需 [Node.js](https://nodejs.org/) 18+ 和 `skills` npm 包（v1.5.12+）。`skills` 是 open agent skills 生态的 CLI，支持 68+ agents（Claude Code / Codex / Cursor / OpenCode 等）。
 
 ```bash
 # 安装到 Claude Code
@@ -37,8 +37,8 @@ npx skills add https://github.com/Kirky-X/specmark.git --agent claude-code -y
 # 等价简写(owner/repo)
 npx skills add Kirky-X/specmark --agent claude-code -y
 
-# 安装到 Trae
-npx skills add Kirky-X/specmark --agent trae -y
+# 安装到 Codex
+npx skills add Kirky-X/specmark --agent codex -y
 
 # 列出仓库中可被发现的所有 skills(不安装)
 npx skills add https://github.com/Kirky-X/specmark.git --list
@@ -48,7 +48,7 @@ npx skills add https://github.com/Kirky-X/specmark.git --list
 
 ### 方式二：传统 git clone + install-skill.sh
 
-仓库自带 `scripts/install-skill.sh`，支持 9 种 agent（claude / cursor / windsurf / trae / gemini / copilot / opencode / roocode / qoder）一键安装：
+仓库自带 `scripts/install-skill.sh`，支持 9 种 agent（claude / cursor / windsurf / codex / gemini / copilot / opencode / roocode / qoder）一键安装：
 
 ```bash
 git clone https://github.com/Kirky-X/specmark.git

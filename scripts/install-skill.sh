@@ -93,14 +93,14 @@ AGENTS=(
   "claude|.claude|skills"
   "cursor|.cursor|rules"
   "windsurf|.windsurf|rules"
-  "trae|.trae|rules"
+  "codex|.codex|rules"
   "gemini|.gemini|skills"
   "copilot|.github|prompts"
   "opencode|.opencode|skills"
   "roocode|.roo|skills"
   "qoder|.qoder|rules"
 )
-ALL_AGENT_NAMES=(claude cursor windsurf trae gemini copilot opencode roocode qoder)
+ALL_AGENT_NAMES=(claude cursor windsurf codex gemini copilot opencode roocode qoder)
 
 # 排除项（相对 skill 源目录的顶层条目）
 EXCLUDE_PATTERNS=(.git .venv node_modules __pycache__ temp .gitnexus .claude)
@@ -137,7 +137,7 @@ Options:
   --force          (仅 update) 跳过 git reset --hard 的交互确认；非交互模式下必需
   -h, --help       显示此帮助
 
-Agents: claude cursor windsurf trae gemini copilot opencode roocode qoder
+Agents: claude cursor windsurf codex gemini copilot opencode roocode qoder
 EOF
 }
 
