@@ -1,205 +1,110 @@
-# Specmark — Specification-Driven Change Workflow Skill
+# Specmark — Specification-Driven Change Workflow
 
-[中文](README.md) | English
+> A specification-driven change management skill for AI agents: an eight-stage state machine covering explore → clarify → propose → analyze → apply → converge → archive → status, with stage gating done by deterministic scripts instead of model guesswork.
 
-[![GitHub Release](https://img.shields.io/github/v/release/Kirky-X/specmark?style=flat-square)](https://github.com/Kirky-X/specmark/releases) [![GitHub License](https://img.shields.io/github/license/Kirky-X/specmark?style=flat-square)](LICENSE)
+[![Version](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2FKirky-X%2Fspecmark%2Fmain%2Fskill.json&query=%24.version&label=version&style=flat-square)](https://github.com/Kirky-X/specmark/releases) [![GitHub Release](https://img.shields.io/github/v/release/Kirky-X/specmark?style=flat-square)](https://github.com/Kirky-X/specmark/releases) [![GitHub License](https://img.shields.io/github/license/Kirky-X/specmark?style=flat-square)](LICENSE)
 
-Specmark is an AI-agent-oriented specification-driven change management skill. It is the successor to four separate `specmark-*` top-level skills, now flattened and merged into a single skill. It provides a complete workflow through seven subcommands: `explore` (read-only exploration/thinking) → `clarify` (structured clarification) → `propose` (one-shot generation of proposal + design + tasks) → `analyze` (cross-artifact consistency check) → `apply` (execute tasks.md item by item) → `converge` (reconcile code against spec) → `archive` (archive completed changes and evaluate delta spec synchronization).
+English | [中文](README.md)
 
-Specmark is a **pure documentation skill** with no external CLI dependency: all change-management operations are performed by the AI agent's file-system tools directly against the `specmark/` working directory. The complete flow, steps, and guardrails for each subcommand are documented in [SKILL.md](SKILL.md) and `references/<subcommand>.md`.
+## ✨ Features
 
-## Features
+- **Eight-stage state machine**: `explore` (read-only thinking) → `clarify` (structured clarification, ≤5 high-impact questions, 8-category scan) → `propose` (one-shot proposal + design + tasks) → `analyze` (read-only cross-artifact quality gate) → `apply` (execute tasks.md item by item) → `converge` (reconcile deliverables against spec, append-only gaps) → `archive` (archive) → `status` (read-only status query), routed via `$ARGUMENTS[0]` and natural-language intent.
+- **Auto-execution chain with complexity-adaptive short-circuit**: stages auto-link; simple changes short-circuit to propose→apply, judged deterministically by `check_phase.sh complexity`; the user can override explicitly.
+- **Delta spec for long-running changes**: when tasks ≥ 5 or spanning ≥ 3 modules, a verifiable spec is generated at `specs/<capability>/spec.md`; `archive --sync` merges it back deterministically via `merge_delta_spec.py`.
+- **6 domain types**: code / doc / event / design / research / general — they determine task format, apply strategy, and converge verification; declared via `<!-- domain: <type> -->` in the proposal header.
+- **Deterministic scripts (Rule 3)**: task counting, complexity, archive readiness, and reference consistency must be computed by scripts under `scripts/`, never hand-counted by the model.
+- **ROOT contract**: scripts run from the user project's cwd; `--root` defaults to the caller's git repository top level automatically.
+- **Archive protection**: change-level flock + commit SHA anchoring + `.readonly` sentinel + refusal to overwrite an existing archive target; `--dry-run` preview.
+- **Safety valves**: the chain pauses on CRITICAL/HIGH findings in analyze; converge loops past 3 rounds hard-stop; `apply --auto-commit` git-commits after each task (off by default).
 
-- **Seven-stage spec-driven workflow**: explore → clarify → propose → analyze → apply → converge → archive. Non-strictly linear; stages can be skipped as needed.
-- **Auto-execution chain**: Stages auto-link (explore→clarify→propose→analyze→apply→converge→ask next), no manual stepping required.
-- **One-shot artifact generation**: `propose` produces `proposal.md` + `design.md` + `tasks.md` in a single run.
-- **Long-running change auto-generates delta spec**: When tasks ≥ 5 or spanning ≥ 3 modules, automatically creates `specs/<capability>/spec.md` with verifiable requirements.
-- **Read-only thinking mode**: `explore` writes no application code — used to clarify ideas, compare options, refine requirements.
-- **Structured clarification**: `clarify` scans 8 categories, asks at most 5 high-impact questions.
-- **Cross-artifact quality gate**: `analyze` read-only checks proposal/design/tasks/delta-spec consistency.
-- **Per-task tracking**: `apply` checks off progress against `tasks.md` and supports resuming an interrupted change.
-- **Convergence reconciliation**: `converge` compares code against spec (prioritizes delta spec acceptance criteria), append-only adds missing tasks.
-- **Delta spec evaluation on archive**: `archive`'s `--sync` flag syncs delta specs into `specmark/specs/` main specs.
-- **Mermaid flow diagrams**: Stage collaboration chain, auto-execution chain, and usage examples visualized as Mermaid diagrams.
-- **Auto-chain failure modes**: 7 failure conditions with predefined handling (analyze CRITICAL pauses chain, converge loop hard-capped at 3, etc.).
-- **Single entry point**: one skill, with subcommand routing via `$ARGUMENTS[0]`.
+## 📦 Installation
 
-## Installation
-
-### Option 1: Install via the `skills` package (recommended)
-
-Requires [Node.js](https://nodejs.org/) 18+ and the `skills` npm package (v1.5.12+). `skills` is the CLI of the open agent skills ecosystem and supports 68+ agents (Claude Code / Codex / Cursor / OpenCode, etc.).
+No external CLI dependency (pure documentation skill; the scripts only need bash and python3).
 
 ```bash
-# Install to Claude Code
-npx skills add https://github.com/Kirky-X/specmark.git --agent claude-code -y
+# Option 1: deploy from this workspace (to ~/.zcode/skills and ~/.claude/skills)
+bash scripts/sync-skills.sh specmark
 
-# Equivalent shorthand (owner/repo)
+# Option 2: manual copy into the ZCode skills directory
+cp -r /path/to/specmark ~/.zcode/skills/specmark
+
+# Option 3: remote install from GitHub, for claude-code / codex and other agents
 npx skills add Kirky-X/specmark --agent claude-code -y
-
-# Install to Codex
-npx skills add Kirky-X/specmark --agent codex -y
-
-# List all discoverable skills in the repo (without installing)
-npx skills add https://github.com/Kirky-X/specmark.git --list
-```
-
-After installation, skill files are placed in the agent's skills directory (the exact path is determined by the chosen `--agent`; refer to each runtime's documentation).
-
-### Option 2: Traditional git clone + install-skill.sh
-
-The repo ships with `scripts/install-skill.sh`, which supports 9 agents (claude / cursor / windsurf / codex / gemini / copilot / opencode / roocode / qoder) for one-shot installation:
-
-```bash
-git clone https://github.com/Kirky-X/specmark.git
-cd specmark
-
-# Install to the claude agent directory of the current project
+# Or use the bundled installer (9 agents supported)
+git clone https://github.com/Kirky-X/specmark && cd specmark
 ./scripts/install-skill.sh install specmark --agent claude
-
-# Install to all supported agents
-./scripts/install-skill.sh install specmark --all-agents
-
-# List supported agents and their paths
-./scripts/install-skill.sh list-agents
 ```
 
-The script automatically copies `SKILL.md` + `skill.json` + `references/` into the target runtime's skills directory. For manual installation, use the `list-agents` subcommand to look up each runtime's path and copy files yourself.
+On reinstall/upgrade the installer protects runtime data: if the target `specmark/changes/` is non-empty it is moved to `changes.bak.<timestamp>/` instead of being silently deleted.
 
-### Updating
+## 🚀 Quick Start
 
-Skills installed via `install-skill.sh` support one-command updates:
+Prerequisite: the skill is installed and loaded by the agent (invoked as `/specmark` in conversation).
+
+```text
+/specmark explore            # Read-only exploration: think through ideas, no app code
+/specmark propose add-auth   # Generate proposal + design + tasks (delta spec for long-running changes)
+/specmark apply              # Execute tasks.md item by item; PAUSE when blocked
+/specmark status             # View active changes, progress, and archive overview
+```
+
+The deterministic scripts can also be called from the user project root (`$SKILL` is the skill install directory):
 
 ```bash
-# Update a single skill (git pull + reinstall)
-./scripts/install-skill.sh update specmark --agent claude
-
-# Update all skills
-./scripts/install-skill.sh update --agent claude
-
-# Update to all agents
-./scripts/install-skill.sh update specmark --all-agents
+bash $SKILL/scripts/status.sh                            # Global status (--json optional)
+bash $SKILL/scripts/check_phase.sh tasks add-auth        # Task completion counts (JSON)
+python3 $SKILL/scripts/check_refs.py --root .            # Cross-file reference lint
 ```
 
-Skills installed via `npx skills add` require re-running `npx skills add` to pull the latest version.
-
-## Usage Examples
-
-Once Specmark is loaded as a skill, subcommands are selected via `$ARGUMENTS[0]`, and natural-language intent is also supported. See the [SKILL.md routing table](./SKILL.md) for detailed subcommand descriptions and intent routing.
-
-| Subcommand | One-line function                                                    |
-| ---------- | -------------------------------------------------------------------- |
-| `explore`  | Read-only exploration/thinking mode; clarify ideas, compare options  |
-| `clarify`  | Structured clarification, optional before propose (≤5 high-impact questions, 8-category scan) |
-| `propose`  | One-shot generation of proposal + design + tasks artifacts           |
-| `analyze`  | Cross-artifact consistency analysis (read-only quality gate, after propose before apply) |
-| `apply`    | Execute tasks defined in tasks.md, checking off each item            |
-| `converge` | Reconcile: compare code against spec after apply, append missing tasks |
-| `archive`  | Archive a completed change, including delta spec sync evaluation     |
-
-### Invocation examples
-
-```text
-/specmark propose add-user-auth      # Explicit subcommand + change name, full artifacts
-/specmark clarify add-user-auth      # Clarify ambiguities before propose (≤5 questions, 8-category scan)
-/specmark analyze add-user-auth      # Check proposal/design/tasks consistency (read-only gate)
-/specmark apply                      # Execute / continue the current change
-/specmark converge                   # Compare code against spec, append missing tasks
-/specmark explore                    # Enter read-only exploration mode
-/specmark                            # No argument → print subcommand routing table
-```
-
-### Natural-language intent triggers
-
-```text
-"I want to do X / add a feature"        → propose (generate full proposal)
-"Requirements have ambiguities / ask first" → clarify (structured clarification)
-"Help me think this through / compare options" → explore
-"Proposal done / check artifact consistency" → analyze (read-only gate)
-"Start implementing / do the next task" → apply
-"Implementation done / compare code and spec" → converge
-"This change is done / archive it"      → archive
-"I'm not sure yet / let's talk first"   → explore (confirmed via AskUserQuestion)
-```
-
-## Capability Overview
-
-### `references/` — Subcommand flow documents
-
-Complete Steps + Guardrails reference for each subcommand:
-
-| File                       | Subcommand flow                                            |
-| -------------------------- | ---------------------------------------------------------- |
-| [`explore.md`](references/explore.md)     | explore flow (read-only exploration/thinking, incl. deep research mode) |
-| [`clarify.md`](references/clarify.md)     | clarify flow (structured clarification, 8-category scan)   |
-| [`propose.md`](references/propose.md)     | propose flow (generate full proposal artifacts + templates)|
-| [`analyze.md`](references/analyze.md)     | analyze flow (read-only cross-artifact consistency check)  |
-| [`apply.md`](references/apply.md)         | apply flow (execute against tasks.md)                      |
-| [`converge.md`](references/converge.md)   | converge flow (reconcile code vs spec gaps)                |
-| [`archive.md`](references/archive.md)     | archive flow (archive + delta spec evaluation)             |
-
-### `specmark/` — Change and spec storage
-
-```
-specmark/
-├── changes/    # In-progress changes (proposal/design/tasks/specs/)
-└── specs/      # Sync target for delta specs (--sync on archive)
-```
-
-Archived changes are stored in `specmark/archive/YYYY-MM-DD-<name>/`.
-
-### `test-prompts.json` — Subcommand trigger test cases
-
-Contains trigger-phrase test cases for each subcommand, used to verify skill routing correctness.
-
-## Complete Workflow Chain
+Stage collaboration chain:
 
 ```mermaid
 flowchart LR
-    A["explore<br/>(exploration, read-only thinking)"] --> B["clarify<br/>(clarification, 8-category Q&A)"]
-    B --> C["propose<br/>(generate proposal,<br/>proposal/design/tasks)"]
-    C --> D["analyze<br/>(consistency analysis, read-only gate)"]
-    D --> E["apply<br/>(execute, per-task checkoff)"]
-    E --> F["converge<br/>(reconcile, append gaps)"]
-    F --> G["archive<br/>(archive, delta spec sync)"]
+    E["explore"] --> C["clarify"] --> P["propose"] --> A["analyze"] --> Ap["apply"] --> Co["converge"] --> Ar["archive"]
+    S["status"]:::query
+    classDef query fill:#fafafa,stroke:#9e9e9e;
 ```
 
-1. `explore` is a read-only thinking mode, enterable at any time; once the idea is clear, use `clarify` (optional) or `propose` to land it as a change.
-2. `clarify` is an optional clarification step before `propose`; skip if the request is already concrete.
-3. After `propose` produces the full artifact set, it prompts you to run `/specmark analyze` (optional gate) or `/specmark apply`.
-4. `analyze` is an optional read-only quality gate after propose and before apply; it does not block apply.
-5. When all `apply` tasks are complete, it prompts you to run `/specmark converge` before `/specmark archive`.
-6. `converge` is an optional reconciliation step between apply and archive; append-only adds missing tasks, then returns to `apply` to close them.
-7. The seven stages are not strictly linear — clarify/analyze/converge can all be skipped as needed (see each reference's Fluid Workflow Integration).
+The chain is not strictly linear: clarify / analyze / converge can be skipped as needed; short-circuit rules and failure modes are documented in [SKILL.md](SKILL.md) and `references/<subcommand>.md`.
 
-## Maintenance Notes
+## ✅ Tests & Verification
 
-This skill was originally four separate top-level skills (`specmark-propose` / `specmark-explore` / `specmark-apply-change` / `specmark-archive-change`), now flattened and merged: each original `SKILL.md` had its frontmatter removed and became `references/{propose,explore,apply,archive}.md`; cross-skill references were rewritten as subcommands of this skill (`/specmark apply`, `/specmark propose`). The skill discovery mechanism only recognizes `specmark/SKILL.md` and does not independently fetch flow documents inside `references/`.
+Verified 2026-09-13 (v0.2.2, matching the git tag):
 
-## FAQ
+- **Syntax**: all 4 shell scripts (`archive_change.sh` / `check_phase.sh` / `install-skill.sh` / `status.sh`) pass `bash -n`.
+- **Functional** (inside a temporary git project):
+  - `check_phase.sh artifacts/tasks/converge-readiness` emit JSON verdicts (e.g. `{"total":3,"completed":1,"all_done":0}`, `{"ready":false,"reason":"2 original tasks still open"}`)
+  - `status.sh` prints the active-change table (name / stage / progress / delta spec)
+  - `archive_change.sh --dry-run` prints an archive preview (target `specmark/archive/YYYY-MM-DD-<name>/`) without executing
+  - Calling `status.sh` from a project subdirectory auto-locates the git repository top level
+- `test-prompts.json` stores trigger-phrase cases per subcommand for routing verification.
 
-### Required `skills` package version?
+## 📁 Directory Structure
 
-Requires `skills` npm package **v1.5.12+**. `skills` is the CLI of the [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) ecosystem and supports 68+ agents. Use `npx skills@latest` to automatically fetch the latest version.
-
-### Remote install reports "No skills found"?
-
-Confirm that the GitHub repo `Kirky-X/specmark` has been pushed with the latest code containing `SKILL.md` (at the repo root, with YAML frontmatter including `name` + `description`). The `skills` package clones the repo and scans for `SKILL.md`; an empty repo or missing `SKILL.md` triggers this error.
-
-### `skills add` reports "Installation complete" but the skill directory does not exist?
-
-This is a known issue with the `skills` package: the command reports success but does not actually copy files. **Workaround**: reinstall using the repo's bundled install script, which supports multiple runtimes:
-
-```bash
-# Reinstall to a specific agent using install-skill.sh
-./scripts/install-skill.sh install specmark --agent claude
-
-# Or list all supported agent paths and copy manually
-./scripts/install-skill.sh list-agents
+```
+specmark/
+├── SKILL.md            # Entry: subcommand routing + auto-chain + anti-pattern blacklist
+├── skill.json          # Metadata (name/version/license/repo)
+├── references/         # Steps + Guardrails per subcommand (10 files)
+│   ├── explore.md … status.md
+│   ├── explore-examples.md
+│   └── troubleshooting.md
+├── scripts/            # Deterministic tools + installer
+│   ├── check_phase.sh      # Stage gating (complexity/tasks/converge/archive-readiness/artifacts)
+│   ├── status.sh           # Global status query
+│   ├── check_refs.py       # Cross-file reference lint
+│   ├── archive_change.sh   # Archive executor (flock + read-only enforcement)
+│   ├── merge_delta_spec.py # Deterministic delta spec merge
+│   └── install-skill.sh    # Multi-agent install/update
+└── specmark/           # Runtime working directory (changes/ specs/ archive/)
 ```
 
-For manual copying, `list-agents` displays each runtime's `folder/subdir` path; pick one and copy `SKILL.md` + `skill.json` + `references/` there.
+## 🔮 Boundaries
 
-## License
+- **Does not trigger**: plain Q&A or direct code generation with no change-management intent. Natural-language intent (e.g. "help me think this through") is first confirmed via AskUserQuestion before entering explore — no silent routing.
+- **Sibling skills**: `pangu` scaffolds projects and CI; `diting` reviews code quality; `tiangang` runs security scans. Specmark only manages the change process itself (spec → tasks → apply → converge → archive); it does not build, run tests, or judge quality.
+- **Pure documentation skill**: all change-management operations go through the agent's file-system tools; scripts only perform deterministic gating.
 
-MIT
+## 📄 License & Attribution
+
+MIT License. Originally four separate top-level skills (`specmark-propose` / `specmark-explore` / `specmark-apply-change` / `specmark-archive-change`), flattened into a single skill with the original SKILL.md content moved into `references/`.

@@ -1,221 +1,110 @@
-# Specmark —— 规格驱动变更工作流技能
+# Specmark — 规格驱动变更工作流
+
+> 面向 AI agent 的规格驱动变更（spec-driven change）管理 skill：八阶段状态机覆盖探索→澄清→提案→分析→实施→收敛→归档→状态查询，阶段判定由确定性脚本完成，不由模型手算。
+
+[![Version](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2FKirky-X%2Fspecmark%2Fmain%2Fskill.json&query=%24.version&label=version&style=flat-square)](https://github.com/Kirky-X/specmark/releases) [![GitHub Release](https://img.shields.io/github/v/release/Kirky-X/specmark?style=flat-square)](https://github.com/Kirky-X/specmark/releases) [![GitHub License](https://img.shields.io/github/license/Kirky-X/specmark?style=flat-square)](LICENSE)
 
 中文 | [English](README_EN.md)
 
-[![GitHub Release](https://img.shields.io/github/v/release/Kirky-X/specmark?style=flat-square)](https://github.com/Kirky-X/specmark/releases) [![GitHub License](https://img.shields.io/github/license/Kirky-X/specmark?style=flat-square)](LICENSE)
+## ✨ 功能特性
 
-Specmark 是一个面向 AI agent 的规格驱动变更(spec-driven change)管理 skill，前身是 4 个独立的 `specmark-*` 顶层技能，现已扁平合并为单一 skill。它通过七个子命令构成完整工作流：`explore`（只读探索/思考）→ `clarify`（结构化澄清）→ `propose`（一步生成 proposal + design + tasks 全套产物）→ `analyze`（跨产物一致性检查）→ `apply`（按 tasks.md 逐条实施）→ `converge`（收敛代码与 spec 缺口）→ `archive`（归档已完成变更并评估 delta spec 同步）。
+- **八阶段状态机**：`explore`（只读探索）→ `clarify`（结构化澄清，≤5 高影响问题、8 分类扫描）→ `propose`（一步生成 proposal + design + tasks）→ `analyze`（跨产物一致性只读质量门）→ `apply`（按 tasks.md 逐条实施）→ `converge`（对比交付物与 spec，append-only 补缺）→ `archive`（归档）→ `status`（只读状态查询），支持 `$ARGUMENTS[0]` 路由与自然语言意图触发
+- **自动执行链 + 复杂度自适应短路**：阶段间自动衔接；简单变更自动短路为 propose→apply，复杂度由 `check_phase.sh complexity` 确定性判定，用户可显式覆盖
+- **长程变更自动生成 delta spec**：任务数 ≥5 或跨 ≥3 模块时在 `specs/<capability>/spec.md` 生成可验证需求规格；`archive --sync` 经 `merge_delta_spec.py` 确定性合并回主规格
+- **6 种领域类型（domain）**：code / doc / event / design / research / general，决定任务格式、apply 策略与 converge 验证方式，proposal 头部 `<!-- domain: <type> -->` 声明
+- **确定性脚本（规则 3）**：任务计数、复杂度评估、归档就绪、引用一致性等判定必须调用 `scripts/` 下脚本，禁止模型手动读文件计算
+- **ROOT 契约**：脚本从用户项目 cwd 调用，`--root` 缺省时自动取调用方所在 git 仓库顶层
+- **归档保护**：change 级 flock + commit SHA 锚定 + `.readonly` 哨兵 + 拒绝覆盖同名归档；`--dry-run` 预览
+- **安全阀**：analyze 有 CRITICAL/HIGH 发现时暂停链路等待用户决策；converge 追加任务循环超过 3 轮硬停止；`apply --auto-commit` 每任务自动 git commit（默认关闭）
 
-specmark 是**纯文档型 skill**，不依赖任何外部 CLI：所有变更管理操作通过 AI agent 的文件系统工具直接操作 `specmark/` 工作目录完成。各子命令的完整流程、步骤与 Guardrails 见 [SKILL.md](SKILL.md) 与 `references/<子命令>.md`。
+## 📦 安装
 
-## 功能特性
-
-- **七阶段 spec-driven 工作流**：探索 → 澄清 → 提案 → 分析 → 实施 → 收敛 → 归档，非强制线性，可按需跳转（加 `status` 查询为八子命令）
-- **自动执行链**：阶段间自动衔接（explore→clarify→propose→analyze→apply→converge→提问），无需手动逐步调用
-- **一步生成全套产物**：`propose` 单次产出 `proposal.md` + `design.md` + `tasks.md`
-- **长程变更自动生成 delta spec**：任务数 ≥5 或跨 ≥3 模块时，自动在 `specs/<capability>/spec.md` 生成可验证需求规格
-- **只读思考模式**：`explore` 不写应用代码，用于梳理想法、对比选项、澄清需求
-- **结构化澄清**：`clarify` 跨 8 分类扫描，至多 5 个高影响问题
-- **跨产物质量门**：`analyze` 只读检查 proposal/design/tasks/delta-spec 一致性
-- **逐条任务追踪**：`apply` 按 `tasks.md` 勾选进度，支持继续中断的 change
-- **收敛对账**：`converge` 对比代码与 spec（优先用 delta spec 验收标准），append-only 追加遗漏任务
-- **归档时 delta spec 评估**：`archive` 的 `--sync` flag 可将 delta spec 同步到 `specmark/specs/` 主规格
-- **Mermaid 流程图**：阶段协作链路、自动执行链、调用示例均以 Mermaid 图表可视化
-- **自动链短路**：简单变更自动跳过非必要阶段（clarify/analyze/converge），由 `scripts/check_phase.sh complexity` 确定性判定
-- **统一入口**：单一 skill 入口，子命令通过 `$ARGUMENTS[0]` 路由
-
-## 安装
-
-### 方式一：通过 `skills` 包安装（推荐）
-
-需 [Node.js](https://nodejs.org/) 18+ 和 `skills` npm 包（v1.5.12+）。`skills` 是 open agent skills 生态的 CLI，支持 68+ agents（Claude Code / Codex / Cursor / OpenCode 等）。
+无外部 CLI 依赖（纯文档型 skill；确定性脚本仅需 bash 与 python3）。
 
 ```bash
-# 安装到 Claude Code
-npx skills add https://github.com/Kirky-X/specmark.git --agent claude-code -y
+# 方式一：从本工作区统一部署（部署到 ~/.zcode/skills 与 ~/.claude/skills）
+bash scripts/sync-skills.sh specmark
 
-# 等价简写(owner/repo)
+# 方式二：手动复制到 ZCode 技能目录
+cp -r /path/to/specmark ~/.zcode/skills/specmark
+
+# 方式三：远程安装（GitHub 仓库），支持 claude-code / codex 等 agent
 npx skills add Kirky-X/specmark --agent claude-code -y
-
-# 安装到 Codex
-npx skills add Kirky-X/specmark --agent codex -y
-
-# 列出仓库中可被发现的所有 skills(不安装)
-npx skills add https://github.com/Kirky-X/specmark.git --list
-```
-
-安装后 skill 文件位于对应 agent 的 skills 目录（具体路径由所选 `--agent` 决定，参见各 runtime 文档）。
-
-### 方式二：传统 git clone + install-skill.sh
-
-仓库自带 `scripts/install-skill.sh`，支持 9 种 agent（claude / cursor / windsurf / codex / gemini / copilot / opencode / roocode / qoder）一键安装：
-
-```bash
-git clone https://github.com/Kirky-X/specmark.git
-cd specmark
-
-# 安装到当前项目的 claude agent 目录
+# 或使用仓库自带安装器（支持 9 种 agent）
+git clone https://github.com/Kirky-X/specmark && cd specmark
 ./scripts/install-skill.sh install specmark --agent claude
-
-# 安装到所有支持的 agent
-./scripts/install-skill.sh install specmark --all-agents
-
-# 查看支持的 agent 与路径
-./scripts/install-skill.sh list-agents
 ```
 
-脚本会自动把 `SKILL.md` + `skill.json` + `references/` 复制到目标 runtime 的 skills 目录。如需手动安装，请用 `list-agents` 子命令查看各 runtime 对应路径后自行复制。
+升级重装时，安装器会保护运行时数据：若目标位置 `specmark/changes/` 非空，自动搬移为 `changes.bak.<时间戳>/`，不静默删除活动变更。
 
-### 更新
+## 🚀 快速开始
 
-通过 `install-skill.sh` 安装的 skill 支持一键更新：
+前置条件：skill 已安装并被 agent 加载（对话中以 `/specmark` 调用）。
+
+```text
+/specmark explore            # 只读探索：梳理想法、对比选项，不写应用代码
+/specmark propose add-auth   # 生成 proposal + design + tasks（长程变更含 delta spec）
+/specmark apply              # 按 tasks.md 逐条实施，遇阻 PAUSE
+/specmark status             # 查看活动变更、进度与归档概览
+```
+
+确定性脚本也可从用户项目根目录直接调用（`$SKILL` 为 skill 安装目录）：
 
 ```bash
-# 更新单个 skill（git pull + 重新安装）
-./scripts/install-skill.sh update specmark --agent claude
-
-# 更新所有 skill
-./scripts/install-skill.sh update --agent claude
-
-# 更新到所有 agent
-./scripts/install-skill.sh update specmark --all-agents
+bash $SKILL/scripts/status.sh                            # 全局状态（--json 可选）
+bash $SKILL/scripts/check_phase.sh tasks add-auth        # 任务完成计数（JSON）
+python3 $SKILL/scripts/check_refs.py --root .            # 跨文件引用一致性 lint
 ```
 
-通过 `npx skills add` 安装的 skill，需重新运行 `npx skills add` 拉取最新版本。
-
-## 使用示例
-
-Specmark 作为 skill 被 agent 加载后，通过 `$ARGUMENTS[0]` 选择子命令，也支持自然语言意图触发。子命令详细描述与用户意图路由见 [SKILL.md 路由表](./SKILL.md)。
-
-### 快速开始（3 步）
-
-```text
-/specmark explore          # 梳理想法、探讨方案（只读）
-/specmark propose my-feat  # 生成 proposal + design + tasks 全套产物
-/specmark apply            # 按 tasks.md 逐条实施
-```
-
-就这么简单。clarify / analyze / converge / archive 按需使用，status 随时查看进度。
-
-### 子命令速查
-
-| 子命令     | 一句话功能                                                |
-| ---------- | --------------------------------------------------------- |
-| `explore`  | 只读探索/思考模式，梳理想法、对比选项、澄清需求           |
-| `clarify`  | 结构化澄清，propose 前可选（≤5 高影响问题，8 分类扫描）   |
-| `propose`  | 一步生成 proposal + design + tasks 全套产物               |
-| `analyze`  | 跨产物一致性分析（只读质量门，propose 后 apply 前）       |
-| `apply`    | 按 tasks.md 实施任务，逐条勾选                            |
-| `converge` | 收敛：apply 完成后对比代码与 spec，append 缺漏任务        |
-| `archive`  | 归档已完成变更，含 delta spec 同步评估                    |
-| `status`   | 只读查询活动变更与历史归档概览                          |
-
-### 调用示例
-
-```text
-/specmark propose add-user-auth      # 明确子命令 + 变更名，生成全套产物
-/specmark clarify add-user-auth      # propose 前澄清模糊点（≤5 问，8 分类扫描）
-/specmark analyze add-user-auth      # 检查 proposal/design/tasks 一致性（只读质量门）
-/specmark apply                      # 实施 / 继续当前 change
-/specmark converge                   # apply 后对比代码与 spec，append 缺漏任务
-/specmark explore                    # 进入只读探索模式
-/specmark                            # 无参 → 列出子命令路由表
-```
-
-### 自然语言意图触发
-
-```text
-「我想做 X / 加个功能」           → propose（生成完整提案）
-「需求里有模糊点 / 先问清楚」     → clarify（结构化澄清）
-「帮我梳理这个想法 / 探讨方案」   → explore
-「提案生成后 / 检查产物一致性」   → analyze（只读质量门）
-「开始实施 / 做下一个任务」       → apply
-「实施完了 / 对比代码和 spec」    → converge
-「这个 change 做完了 / 归档」     → archive
-「当前状态 / 有哪些变更」         → status
-「我还没想好 / 先聊聊」           → explore（用 AskUserQuestion 确认）
-```
-
-## 能力概览
-
-### `references/` —— 子命令流程文档
-
-七个子命令的完整 Steps + Guardrails 参考文档：
-
-| 文件                       | 子命令流程                                    |
-| -------------------------- | --------------------------------------------- |
-| [`explore.md`](references/explore.md)     | explore 子命令流程（只读探索/思考，含深度研究模式）   |
-| [`clarify.md`](references/clarify.md)     | clarify 子命令流程（结构化澄清，8 分类扫描）         |
-| [`propose.md`](references/propose.md)     | propose 子命令流程（生成全套提案产物 + 模板）        |
-| [`analyze.md`](references/analyze.md)     | analyze 子命令流程（只读跨产物一致性检查）           |
-| [`apply.md`](references/apply.md)         | apply 子命令流程（按 tasks.md 实施）                 |
-| [`converge.md`](references/converge.md)   | converge 子命令流程（收敛代码与 spec 缺口）          |
-| [`archive.md`](references/archive.md)     | archive 子命令流程（归档 + delta spec 评估）         |
-| [`status.md`](references/status.md)       | status 子命令流程（全局状态查询）                    |
-| [`troubleshooting.md`](references/troubleshooting.md) | 常见问题与恢复指南                            |
-
-### `specmark/` —— 变更与规格存储
-
-```
-specmark/
-├── changes/    # 进行中的变更(proposal/design/tasks/specs/)
-└── specs/      # 长程变更的 delta spec 同步目标(--sync 归档时)
-```
-
-归档后的变更存放在 `specmark/archive/YYYY-MM-DD-<name>/`。
-
-### `test-prompts.json` —— 子命令触发测试用例
-
-包含各子命令的触发语测试用例，用于验证 skill 路由正确性。
-
-## 完整流程链路
+阶段协作链路：
 
 ```mermaid
 flowchart LR
-    A["explore<br/>探索(只读思考)"] --> B["clarify<br/>澄清(8分类问答)"]
-    B --> C["propose<br/>生成提案<br/>(proposal/design/tasks)"]
-    C --> D["analyze<br/>一致性分析<br/>(只读质量门)"]
-    D --> E["apply<br/>实施(逐条勾选)"]
-    E --> F["converge<br/>收敛(append 缺漏)"]
-    F --> G["archive<br/>归档(delta spec 同步)"]
+    E["explore"] --> C["clarify"] --> P["propose"] --> A["analyze"] --> Ap["apply"] --> Co["converge"] --> Ar["archive"]
+    S["status"]:::query
+    classDef query fill:#fafafa,stroke:#9e9e9e;
 ```
 
-1. `explore` 是只读思考模式，可随时进入；想清楚后用 `clarify`（可选）或 `propose` 落地为变更
-2. `clarify` 是 propose 前的可选澄清步骤；需求明确时直接跳过
-3. `propose` 产出全套产物后，提示运行 `/specmark analyze`（可选质量门）或 `/specmark apply`
-4. `analyze` 是 propose 后 apply 前的可选只读质量门；不阻塞 apply
-5. `apply` 全部任务完成后，提示先 `/specmark converge` 再 `/specmark archive`
-6. `converge` 是 apply 后 archive 前的可选收敛步骤；append-only 追加遗漏任务，再回到 `apply` 关闭
-7. 七阶段非强制线性，clarify/analyze/converge 均可按需跳转（见各 references 的 Fluid Workflow Integration）
+非强制线性：clarify / analyze / converge 可按需跳过，自动链有短路规则与失败模式处理，详见 [SKILL.md](SKILL.md) 与 `references/<子命令>.md`。
 
-## 维护说明
+## ✅ 测试与验证
 
-本技能原为 4 个独立顶层技能（`specmark-propose` / `specmark-explore` / `specmark-apply-change` / `specmark-archive-change`），现已扁平合并：各原 `SKILL.md` 去除 frontmatter 后成为 `references/{propose,explore,apply,archive}.md`；跨技能交叉引用已改写为本技能子命令（`/specmark apply`、`/specmark propose`）。技能发现机制只识别 `specmark/SKILL.md`，不独立获取 `references/` 内的流程文档。
+2026-09-13 实测（v0.2.2，与 git tag 一致）：
 
-## FAQ
+- **语法检查**：4 个 shell 脚本（`archive_change.sh` / `check_phase.sh` / `install-skill.sh` / `status.sh`）`bash -n` 全部通过
+- **功能实测**（临时 git 项目内）：
+  - `check_phase.sh artifacts/tasks/converge-readiness` 输出 JSON 判定（如 `{"total":3,"completed":1,"all_done":0}`、`{"ready":false,"reason":"2 original tasks still open"}`）
+  - `status.sh` 正确输出活动变更表格（变更名 / 阶段 / 进度 / delta spec）
+  - `archive_change.sh --dry-run` 输出归档预览（目标 `specmark/archive/YYYY-MM-DD-<name>/`）且不执行实际操作
+  - 从项目子目录调用 `status.sh`，ROOT 自动定位 git 仓库顶层
+- `test-prompts.json` 保存各子命令触发语用例，用于验证路由正确性
 
-### `skills` 包版本要求?
+## 📁 目录结构
 
-需 `skills` npm 包 **v1.5.12+**。`skills` 是 [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) 生态的 CLI，支持 68+ agents。用 `npx skills@latest` 自动获取最新版。
-
-### 远程安装提示"No skills found"?
-
-确认 GitHub 仓库 `Kirky-X/specmark` 已 push 含 `SKILL.md`（根目录，YAML frontmatter 含 `name` + `description`）的最新代码。`skills` 包通过 `git clone` 获取仓库后扫描 `SKILL.md`，仓库为空或缺少 `SKILL.md` 会报该错。
-
-### `skills add` 提示"Installation complete"但 skill 目录不存在?
-
-这是 `skills` 包的已知问题：命令报告成功但未实际复制文件。**Workaround**：用仓库自带的安装脚本重新安装，支持多 runtime：
-
-```bash
-# 用 install-skill.sh 重新安装到指定 agent
-./scripts/install-skill.sh install specmark --agent claude
-
-# 或查看所有支持的 agent 路径后手动复制
-./scripts/install-skill.sh list-agents
+```
+specmark/
+├── SKILL.md            # 入口：子命令路由 + 自动链 + 反模式黑名单
+├── skill.json          # 元数据（name/version/license/repo）
+├── references/         # 每个子命令的 Steps + Guardrails（10 个文件）
+│   ├── explore.md … status.md
+│   ├── explore-examples.md
+│   └── troubleshooting.md
+├── scripts/            # 确定性工具 + 安装器
+│   ├── check_phase.sh      # 阶段完成判定（complexity/tasks/converge/archive-readiness/artifacts）
+│   ├── status.sh           # 全局状态查询
+│   ├── check_refs.py       # 跨文件引用一致性 lint
+│   ├── archive_change.sh   # 归档执行器（flock + 只读强制）
+│   ├── merge_delta_spec.py # delta spec 确定性合并
+│   └── install-skill.sh    # 多 agent 安装/更新
+└── specmark/           # 运行时工作目录（changes/ specs/ archive/）
 ```
 
-如需手动复制，`list-agents` 会显示各 runtime 对应的 `folder/subdir` 路径，按需选择后把 `SKILL.md` + `skill.json` + `references/` 复制过去即可。
+## 🔮 边界
 
-## 许可证
+- **不触发**：普通问答、无变更意图的直接代码生成。自然语言意图（如「帮我梳理思路」）会先经 AskUserQuestion 确认是否进入 explore，不自动路由
+- **与兄弟 skill 分工**：`pangu` 负责项目脚手架与 CI 初始化；`diting` 负责代码质量审查；`tiangang` 负责安全扫描；specmark 只管变更过程本身（spec → 任务 → 实施 → 收敛 → 归档），不做构建、测试执行或质量判断
+- **纯文档型**：所有变更管理操作通过 agent 文件系统工具完成，脚本仅做确定性判定
 
-MIT
+## 📄 License 与归属
+
+MIT License。前身是 4 个独立顶层技能（`specmark-propose` / `specmark-explore` / `specmark-apply-change` / `specmark-archive-change`），已扁平合并为单一 skill，原 SKILL.md 内容迁入 `references/`。
