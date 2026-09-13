@@ -15,7 +15,7 @@ specmark 工作流中常见场景的恢复方法。
 | 误归档了未完成的变更 | 从 `specmark/archive/<date>-<name>/` 手动 mv 回 `specmark/changes/<name>/` |
 | analyze 发现 CRITICAL 问题 | 自动链暂停 → 修复产物 → 重跑 analyze → 继续 apply |
 | 自动链误路由（进了错误子命令） | 发出新指令中断链路 → 显式调用正确子命令 |
-| delta spec 合并失败 | 检查 `scripts/merge_delta_spec.py` 输出 → 确认 delta spec 格式正确 → 重跑 `--dry-run` |
+| delta spec 合并失败 | 检查 `specmark/scripts/merge_delta_spec.py` 输出 → 确认 delta spec 格式正确 → 重跑 `--dry-run` |
 | 锁竞争失败（archive 退出码 2） | 等待其他进程完成 → 重试，或检查 `specmark/.locks/` 清理残留锁 |
 | apply 非 code 域阻塞（无可验证交付物） | PAUSE → 检查 proposal.md 的 domain 声明 → 确认任务含 `→ <交付物标识>` → 恢复 apply |
 | converge 非 code 域对账失败 | 检查 drift 基线是否匹配 domain → 确认交付物实际存在 → 用对应域的对账策略重跑 |
@@ -86,13 +86,13 @@ rm specmark/changes/<change-name>/meta.json
 
 ```bash
 # 预览合并（不实际写入）
-python3 scripts/merge_delta_spec.py --dry-run \
+python3 specmark/scripts/merge_delta_spec.py --dry-run \
   --main specmark/specs/<cap>/spec.md \
   --delta specmark/changes/<name>/specs/<cap>/spec.md
 
 # 根据错误输出修正 delta spec 格式
 # 然后重新归档
-bash scripts/archive_change.sh <name> --sync
+bash specmark/scripts/archive_change.sh <name> --sync
 ```
 
 ### 锁竞争失败
@@ -109,7 +109,7 @@ lsof specmark/.locks/<name>.lock 2>/dev/null
 rm specmark/.locks/<name>.lock
 
 # 重试归档
-bash scripts/archive_change.sh <name> --sync
+bash specmark/scripts/archive_change.sh <name> --sync
 ```
 
 ### apply 非 code 域阻塞恢复
@@ -154,22 +154,22 @@ bash scripts/archive_change.sh <name> --sync
 
 ```bash
 # 全局状态概览
-bash scripts/status.sh
+bash $SKILL/scripts/status.sh
 
 # 单个变更的产物完整性
-bash scripts/check_phase.sh artifacts <name>
+bash specmark/scripts/check_phase.sh artifacts <name>
 
 # 单个变更的任务完成状态
-bash scripts/check_phase.sh tasks <name>
+bash specmark/scripts/check_phase.sh tasks <name>
 
 # 是否可进入 converge
-bash scripts/check_phase.sh converge-readiness <name>
+bash specmark/scripts/check_phase.sh converge-readiness <name>
 
 # 是否可归档
-bash scripts/check_phase.sh archive-readiness <name>
+bash specmark/scripts/check_phase.sh archive-readiness <name>
 
 # 变更复杂度评估
-bash scripts/check_phase.sh complexity <name>
+bash specmark/scripts/check_phase.sh complexity <name>
 ```
 
 ### 检查文档一致性
@@ -186,5 +186,5 @@ python3 scripts/check_refs.py --json
 
 ```bash
 # 预览归档结果（不执行）
-bash scripts/archive_change.sh <name> --sync --dry-run
+bash specmark/scripts/archive_change.sh <name> --sync --dry-run
 ```

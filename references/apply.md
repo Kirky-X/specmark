@@ -26,7 +26,7 @@
    同时**必须**调用确定性脚本获取精确任务计数（规则 3：确定性逻辑禁止交给模型）：
 
    ```bash
-   bash scripts/check_phase.sh tasks <name>
+   bash $SKILL/scripts/check_phase.sh tasks <name>
    ```
 
    脚本输出 JSON，含 `total`、`completed`、`remaining`、`original_total`、`original_completed`、`convergence_total`、`convergence_completed`、`all_original_done`、`all_done`。用这些数值而非手动计数。

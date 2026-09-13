@@ -12,11 +12,11 @@
 
 1. **运行状态查询脚本**
 
-   调用 `scripts/status.sh` 获取全局状态：
+   调用 `$SKILL/scripts/status.sh` 获取全局状态：
 
    ```bash
-   bash scripts/status.sh          # 人类可读表格
-   bash scripts/status.sh --json   # JSON 格式（程序化处理）
+   bash $SKILL/scripts/status.sh          # 人类可读表格
+   bash $SKILL/scripts/status.sh --json   # JSON 格式（程序化处理）
    ```
 
    脚本自动扫描 `specmark/changes/` 和 `specmark/archive/` 目录。
@@ -32,7 +32,7 @@
    | 任务进度 | `tasks.md` 中 `- [x]` / `- [ ]` 计数 |
    | delta spec | `specs/` 下 `spec.md` 文件数 |
 
-   **阶段推断规则**（由 `scripts/check_phase.sh` 确定性执行）：
+   **阶段推断规则**（由 `$SKILL/scripts/check_phase.sh` 确定性执行）：
 
    | 条件 | 推断阶段 |
    |------|----------|

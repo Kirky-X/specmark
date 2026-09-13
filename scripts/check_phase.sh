@@ -18,14 +18,16 @@ set -euo pipefail
 
 SCRIPT_REAL="$(readlink -f "$0")"
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_REAL")" && pwd)"
-ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# ROOT 默认取调用方 cwd 所在 git 仓库顶层（changes/ 活在用户项目里，不在 skill 目录）；
+# 可用 --root 覆盖。找不到 change 目录时脚本会带 --root 提示报错。
+ROOT="${SPECMARK_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 
 err()  { printf '[ERROR] %s\n' "$*" >&2; }
 info() { printf '[INFO] %s\n' "$*" >&2; }
 
 usage() {
   cat <<'EOF'
-Usage: check_phase.sh <subcommand> <change-name>
+Usage: check_phase.sh <subcommand> <change-name> [--root <project-root>]
 
 Subcommands:
   artifacts <name>          检查产物完整性
@@ -34,6 +36,9 @@ Subcommands:
   archive-readiness <name>  检查是否可归档
   complexity <name>         评估变更复杂度（短程/长程）
 
+Options:
+  --root <dir>  项目根目录（默认：调用方 cwd 所在 git 仓库顶层，非 git 目录则取 cwd）
+
 Exit codes: 0 = condition met; 1 = condition not met; 2 = input error.
 EOF
 }
@@ -41,6 +46,11 @@ EOF
 [[ $# -ge 2 ]] || { usage; exit 2; }
 SUBCMD="$1"
 CHANGE_NAME="$2"
+
+# 解析 --root（与 status.sh 一致）
+if [[ $# -ge 4 && "$3" == "--root" ]]; then
+  ROOT="$(cd "$4" && pwd)"
+fi
 
 CHANGE_DIR="$ROOT/specmark/changes/$CHANGE_NAME"
 

@@ -13,7 +13,8 @@ set -euo pipefail
 
 SCRIPT_REAL="$(readlink -f "$0")"
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_REAL")" && pwd)"
-ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# ROOT 默认取调用方 cwd 所在 git 仓库顶层（与 check_phase.sh/archive_change.sh 一致）
+ROOT="${SPECMARK_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 
 JSON=0
 while [[ $# -gt 0 ]]; do

@@ -8,9 +8,9 @@
 
 0. **启动检测：归档目录只读状态**
 
-   归档目录 `specmark/archive/` 是只读历史。`scripts/archive_change.sh` 在创建归档根时会放置 `specmark/archive/.readonly` 哨兵；该脚本对归档目录的**唯一允许写入是追加新条目**，拒绝覆盖/删除既有归档。
+   归档目录 `specmark/archive/` 是只读历史。`$SKILL/scripts/archive_change.sh` 在创建归档根时会放置 `specmark/archive/.readonly` 哨兵；该脚本对归档目录的**唯一允许写入是追加新条目**，拒绝覆盖/删除既有归档。
    - 若用户请求"修改/删除/重命名既有归档条目"：拒绝，提示新建 change 处理后续变更。
-   - 实际归档操作（步骤 4 的可选 sync + 步骤 5 的 mv + 写 meta.json）**必须**通过 `scripts/archive_change.sh` 执行（内含 change 级 flock、只读强制、commit SHA 锚定），不由 AI 用文件系统工具手动 mv——手动 mv 绕过锁与只读强制，违反确定性逻辑代码化的核心约束。
+   - 实际归档操作（步骤 4 的可选 sync + 步骤 5 的 mv + 写 meta.json）**必须**通过 `$SKILL/scripts/archive_change.sh` 执行（内含 change 级 flock、只读强制、commit SHA 锚定），不由 AI 用文件系统工具手动 mv——手动 mv 绕过锁与只读强制，违反确定性逻辑代码化的核心约束。
 
 1. **若未提供变更名，提示选择**
 
@@ -28,7 +28,7 @@
    **必须**调用确定性脚本检查产物完整性（规则 3：确定性逻辑禁止交给模型）：
 
    ```bash
-   bash scripts/check_phase.sh artifacts <name>
+   bash $SKILL/scripts/check_phase.sh artifacts <name>
    ```
 
    脚本输出 JSON，含 `proposal`、`design`、`tasks`、`specs`、`spec_count`、`all_present` 字段。`all_present=1` 表示产物完整。
@@ -49,7 +49,7 @@
    **必须**调用确定性脚本检查归档就绪状态（规则 3：确定性逻辑禁止交给模型）：
 
    ```bash
-   bash scripts/check_phase.sh archive-readiness <name>
+   bash $SKILL/scripts/check_phase.sh archive-readiness <name>
    ```
 
    脚本输出 JSON：
@@ -57,7 +57,7 @@
    - `ready=false` + `remaining`/`total`：仍有未完成任务
    - `ready=false` + `reason="missing artifacts"`：产物文件缺失
 
-   也可用 `bash scripts/check_phase.sh tasks <name>` 获取更详细的任务计数（含原始/收敛分类）。
+   也可用 `bash $SKILL/scripts/check_phase.sh tasks <name>` 获取更详细的任务计数（含原始/收敛分类）。
 
    **若发现未完成任务：**
    - 显示警告显示未完成任务数
@@ -73,7 +73,7 @@
 
    **若 delta spec 存在且 `--sync` flag 已传入：**
 
-   合并由确定性脚本 `scripts/merge_delta_spec.py` 完成（**不再启动 LLM 子 agent**——spec 合并是确定性结构操作，按 R-`<cap>`-NNN 键做 ADD/MODIFY/DELETE/KEEP，违反"确定性逻辑禁止交给模型"，故改为显式代码）。语义：
+   合并由确定性脚本 `$SKILL/scripts/merge_delta_spec.py` 完成（**不再启动 LLM 子 agent**——spec 合并是确定性结构操作，按 R-`<cap>`-NNN 键做 ADD/MODIFY/DELETE/KEEP，违反"确定性逻辑禁止交给模型"，故改为显式代码）。语义：
 
    | 情形   | 条件                          | 行为                       |
    | ------ | ----------------------------- | -------------------------- |
@@ -83,26 +83,26 @@
    | KEEP   | R-ID 仅在 main                | 原样保留                   |
 
    `Constraints` / `Out of Scope` 按精确行并集合并（main 在前，delta 独有行追加）。幂等：对同一 (main, delta) 合并两次产生相同字节。
-   - 可先 `python3 scripts/merge_delta_spec.py --main specmark/specs/<cap>/spec.md --delta specmark/changes/<name>/specs/<cap>/spec.md --dry-run` 预览合并结果，向用户展示合并摘要。
+   - 可先 `python3 $SKILL/scripts/merge_delta_spec.py --main specmark/specs/<cap>/spec.md --delta specmark/changes/<name>/specs/<cap>/spec.md --dry-run` 预览合并结果，向用户展示合并摘要。
    - 实际合并由步骤 5 的 `archive_change.sh --sync` 自动对每个 delta spec 调用该脚本，无需手动逐个执行。
 
    **若 delta spec 存在但未传 `--sync`：** 不同步，直接归档。Delta spec 随变更目录一起归档，保留在 `specmark/archive/YYYY-MM-DD-<name>/specs/` 中作为历史记录。
 
    **若无 delta spec：** 不带同步提示继续。
 
-5. **执行归档（通过 `scripts/archive_change.sh`）**
+5. **执行归档（通过 `$SKILL/scripts/archive_change.sh`）**
 
    实际的 mv + 只读哨兵维护 + change 级 flock + commit SHA 锚定由确定性执行器完成：
 
    ```bash
-   bash scripts/archive_change.sh <name> [--sync] [--date YYYY-MM-DD]
+   bash $SKILL/scripts/archive_change.sh <name> [--sync] [--date YYYY-MM-DD]
    ```
 
    该脚本（确定性逻辑代码化，不由 AI 手动 mv）：
    - 创建 `specmark/archive/.readonly` 哨兵（若缺失），并把归档根标记为只读历史；
    - 获取 change 级独占 flock（`specmark/.locks/<name>.lock`，最多等 10s）防并发损坏；
    - **只读强制**：目标 `specmark/archive/<date>-<name>` 已存在时报错退出，拒绝覆盖；
-   - `--sync` 时对每个 delta spec 调 `scripts/merge_delta_spec.py`（见步骤 4）；
+   - `--sync` 时对每个 delta spec 调 `$SKILL/scripts/merge_delta_spec.py`（见步骤 4）；
    - 原子 `mv specmark/changes/<name> → specmark/archive/<date>-<name>`；
    - 清理锁文件 `specmark/.locks/<name>.lock`；
    - 清理空父目录：若 `specmark/changes/` 或 `specmark/.locks/` 变空则自动删除；
@@ -142,7 +142,7 @@
 - 不在警告上阻塞归档 —— 仅告知并确认
 - 变更目录整体移到归档（含 specs/ 目录，若存在）；无单独配置文件
 - 显示清晰的发生了什么摘要
-- **归档执行必须走 `scripts/archive_change.sh`** —— 它内含只读哨兵、change 级 flock、commit SHA 锚定；不手动 mv
+- **归档执行必须走 `$SKILL/scripts/archive_change.sh`** —— 它内含只读哨兵、change 级 flock、commit SHA 锚定；不手动 mv
 - **归档目录只读** —— `specmark/archive/.readonly` 哨兵存在；既有归档条目禁止修改/删除/重命名，只允许追加新条目
-- delta spec 同步仅在传入 `--sync` flag 时执行；默认不同步，delta spec 随变更归档；同步由 `scripts/merge_delta_spec.py` 确定性完成（不启动 LLM 子 agent）
+- delta spec 同步仅在传入 `--sync` flag 时执行；默认不同步，delta spec 随变更归档；同步由 `$SKILL/scripts/merge_delta_spec.py` 确定性完成（不启动 LLM 子 agent）
 - 归档后 delta spec 保留在 `specmark/archive/YYYY-MM-DD-<name>/specs/` 中，可追溯

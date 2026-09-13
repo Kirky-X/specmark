@@ -13,7 +13,7 @@
    **必须**调用确定性脚本检查 converge 就绪状态（规则 3：确定性逻辑禁止交给模型）：
 
    ```bash
-   bash scripts/check_phase.sh converge-readiness <name>
+   bash $SKILL/scripts/check_phase.sh converge-readiness <name>
    ```
 
    脚本输出 JSON：

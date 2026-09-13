@@ -95,7 +95,7 @@
       **复杂度评估**：tasks.md 创建完成后，**必须**调用确定性脚本评估复杂度（规则 3：确定性逻辑禁止交给模型）：
 
       ```bash
-      bash scripts/check_phase.sh complexity <name>
+      bash $SKILL/scripts/check_phase.sh complexity <name>
       ```
 
       脚本输出 JSON，含 `complexity`（`short`/`long`）、`task_count`、`module_count`、`multi_domain` 及三项判定条件。`complexity=long` 即长程变更，需生成 delta spec；`complexity=short` 即短程变更，跳过。

@@ -271,8 +271,15 @@ cmd_install() {
       printf '%-10s %-58s %s%s%s\n' "$agent" "$dest" "$RED" "FAILED" "$RESET"
       continue
     fi
-    # specmark/changes 为运行时产物（specmark skill 本身保留）；带卫语句
-    [[ -n "$dest" && "$dest" != "/" ]] && rm -rf "$dest/specmark/changes" 2>/dev/null || true
+    # specmark/changes 为运行时产物：里面可能有**活动变更**，禁止静默删除。
+    # 非空时整体搬到带时间戳的备份目录，由用户事后处置（规则12：不静默丢数据）。
+    if [[ -n "$dest" && "$dest" != "/" && -d "$dest/specmark/changes" ]]; then
+      if [[ -n "$(ls -A "$dest/specmark/changes" 2>/dev/null)" ]]; then
+        _bak="$dest/specmark/changes.bak.$(date +%Y%m%d-%H%M%S)"
+        mv "$dest/specmark/changes" "$_bak"
+        printf '%-10s %s\n' "$agent" "NOTE: 已有 changes/ 非空，已搬至 $_bak（确认无用后可删）"
+      fi
+    fi
 
     printf '%-10s %-58s %s%s%s\n' "$agent" "$dest" "$GREEN" "OK" "$RESET"
   done <<< "$agents"

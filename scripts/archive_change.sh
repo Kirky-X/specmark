@@ -18,7 +18,8 @@ set -euo pipefail
 
 SCRIPT_REAL="$(readlink -f "$0")"
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_REAL")" && pwd)"
-ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# ROOT 默认取调用方 cwd 所在 git 仓库顶层（与 check_phase.sh/status.sh 一致）
+ROOT="${SPECMARK_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 
 err()  { printf '[ERROR] %s\n' "$*" >&2; }
 info() { printf '[INFO] %s\n' "$*" >&2; }
@@ -181,10 +182,8 @@ fi
 # 执行移动（原子）
 mv "$CHANGE_DIR" "$TARGET"
 
-# 清理锁文件
-if [[ -f "$LOCKFILE" ]]; then
-  rm -f "$LOCKFILE"
-fi
+# 注意：不删除 LOCKFILE——本进程仍持有其 flock，删除后新进程会锁到新 inode，
+# 形成假互斥（竞态）。锁文件保留在 .locks/ 下，无害且可复用。
 
 # 清理空目录（change 已 mv 走，changes/ 可能变空；锁文件删除后 .locks/ 可能变空）
 for dir in "$ROOT/specmark/changes" "$LOCKS_DIR"; do
