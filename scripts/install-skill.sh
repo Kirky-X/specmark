@@ -271,6 +271,9 @@ cmd_install() {
       printf '%-10s %-58s %s%s%s\n' "$agent" "$dest" "$RED" "FAILED" "$RESET"
       continue
     fi
+    # 显式补执行位：源文件模式位可能缺失（如 git 索引存 100644），缺失时按文档直接
+    # 调用 scripts/*.sh 会 Permission denied。目录无脚本时 glob 落空由 || true 兜住。
+    chmod +x "$dest"/scripts/*.sh "$dest"/scripts/*.py 2>/dev/null || true
     # specmark/changes 为运行时产物：里面可能有**活动变更**，禁止静默删除。
     # 非空时整体搬到带时间戳的备份目录，由用户事后处置（规则12：不静默丢数据）。
     if [[ -n "$dest" && "$dest" != "/" && -d "$dest/specmark/changes" ]]; then

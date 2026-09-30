@@ -75,7 +75,7 @@ def _strip_blank_ends(lines: list[str]) -> list[str]:
 
 
 def parse_spec(path: Path) -> Spec:
-    text = path.read_text(encoding="utf-8")
+    text = path.read_text(encoding="utf-8", errors="replace")
     lines = text.split("\n")
     spec = Spec()
 

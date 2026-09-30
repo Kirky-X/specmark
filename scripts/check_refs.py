@@ -1,16 +1,24 @@
 #!/usr/bin/env python3
-"""check_refs.py — 跨文件引用一致性 lint。
+"""check_refs.py — 引用与产物一致性 lint（两种模式）。
 
-检测 references/*.md 与 SKILL.md 之间的引用完整性：
+skill 模式（--skill-root，检查 specmark skill 仓库自身）：
   1. 跨文件 section 引用（如 "propose.md §2"）是否指向真实存在的章节
   2. 跨文件 line 引用（如 "converge.md line 79-83"）是否指向有效行范围
   3. 关键术语/清单是否在多文件间出现漂移（重复定义但内容不同）
   4. 反向引用完整性（引用了某文件但该文件不存在）
 
-退出码：0 = 无问题；1 = 有发现；2 = 脚本错误。
+项目模式（--project，检查用户项目里的活动 change 产物）：
+  a. tasks.md 占位符扫描（propose.md §2 禁用短语，硬规则零匹配）
+  b. 任务 ID 零填充格式与唯一性、优先级取值域
+  c. 任务内文件路径存在性（缺失仅 WARN——可能由更早任务创建）
+  d. NEEDS CLARIFICATION 条目计数与 [~] 阻塞任务暴露
+
+退出码：0 = 无问题；1 = 有发现（存在 ERROR）；2 = 脚本错误。
 
 用法：
-  python3 scripts/check_refs.py [--root <project-root>] [--json] [--verbose]
+  python3 scripts/check_refs.py --skill-root <skill-repo> [--json] [--verbose]
+  python3 scripts/check_refs.py --project <project-root> [--json] [--verbose]
+  # --root 为旧参数名，等价 --skill-root（已弃用，stderr 提示）
 """
 
 from __future__ import annotations
@@ -69,6 +77,8 @@ MD_LINK_RE = re.compile(
 NATURAL_REF_RE = re.compile(
     r"(?:见|参见|参考|对齐|与|同)\s+`?(\w+)\.md`?"
 )
+# 匹配任务描述中的源码路径（与 specmark_state.py complexity 模块提取同一形状）
+CODE_PATH_RE = re.compile(r"(?:src/|lib/|app/)?[A-Za-z0-9_/-]+\.[A-Za-z]+")
 
 # 关键共享概念：在多个文件中出现应保持一致的术语/清单
 SHARED_CONCEPTS = {
@@ -206,8 +216,125 @@ def check_shared_concepts(files: dict[str, str]) -> list[Finding]:
     return findings
 
 
+TASK_ID_RE = re.compile(r"\[T(\d+)\]")
+TASK_PRIORITY_RE = re.compile(r"\[P([A-Za-z0-9]+)\]")
+NEEDS_CLARIFICATION_RE = re.compile(r"^##\s+NEEDS CLARIFICATION\s*$")
+BLOCKED_TASK_RE = re.compile(r"^- \[~\]")
+
+
+def check_project(root: Path, verbose: bool = False) -> list[Finding]:
+    """项目模式：对用户项目 specmark/changes/ 下的活动变更跑产物任务 lint。"""
+    findings: list[Finding] = []
+    changes_dir = root / "specmark" / "changes"
+    if not changes_dir.is_dir():
+        findings.append(Finding("ERROR", "no-changes-dir", "-",
+                                f"未找到活动变更目录: {changes_dir}"))
+        return findings
+
+    active = sorted(d for d in changes_dir.iterdir()
+                    if d.is_dir() and not d.name.startswith("."))
+    if not active:
+        findings.append(Finding("INFO", "no-active-changes", "-",
+                                "无活动变更，无产物可检查"))
+        return findings
+
+    banned = SHARED_CONCEPTS["禁用短语"]
+
+    for cdir in active:
+        name = cdir.name
+        tasks_file = cdir / "tasks.md"
+        proposal_file = cdir / "proposal.md"
+        proposal_text = proposal_file.read_text(encoding="utf-8", errors="replace") \
+            if proposal_file.is_file() else ""
+        domain = "code"
+        m = re.search(r"<!--\s*domain:\s*([a-z]+)", proposal_text)
+        if m:
+            domain = m.group(1)
+
+        if not tasks_file.is_file():
+            findings.append(Finding("ERROR", "missing-tasks", name,
+                                    "tasks.md 不存在，先运行 /specmark propose"))
+            continue
+        tasks_text = tasks_file.read_text(encoding="utf-8", errors="replace")
+
+        # a. 占位符扫描（propose.md §2 硬规则：零匹配）
+        seen_banned: set[str] = set()
+        for i, line in enumerate(tasks_text.split("\n"), 1):
+            for phrase in banned:
+                if phrase in line and phrase not in seen_banned:
+                    seen_banned.add(phrase)
+                    findings.append(Finding(
+                        "ERROR", "placeholder", f"{name}/tasks.md:{i}",
+                        f"任务含禁用占位符 \"{phrase}\"（propose.md §2）——拆为具体子任务或写入 NEEDS CLARIFICATION",
+                    ))
+
+        # b. 任务 ID 格式与唯一性、优先级取值域
+        ids: list[str] = []
+        for i, line in enumerate(tasks_text.split("\n"), 1):
+            if not line.startswith("- ["):
+                continue
+            for m in TASK_ID_RE.finditer(line):
+                digits = m.group(1)
+                ids.append(digits)
+                if len(digits) != 3:
+                    findings.append(Finding(
+                        "ERROR", "task-id-format", f"{name}/tasks.md:{i}",
+                        f"任务 ID [T{digits}] 非三位零填充（应为 T001 形式）",
+                    ))
+            for m in TASK_PRIORITY_RE.finditer(line):
+                priority = "P" + m.group(1)
+                if priority not in ("P0", "P1", "P2"):
+                    findings.append(Finding(
+                        "ERROR", "task-priority", f"{name}/tasks.md:{i}",
+                        f"优先级 [{priority}] 不在 P0/P1/P2 取值域",
+                    ))
+        dupes = sorted({t for t in ids if ids.count(t) > 1})
+        if dupes:
+            findings.append(Finding("ERROR", "task-id-duplicate", f"{name}/tasks.md",
+                                    f"任务 ID 重复: {', '.join('T' + t for t in dupes)}（永不重排已有 ID）"))
+
+        # c. 交付物路径存在性（缺失仅 WARN：可能由更早任务创建）
+        for i, line in enumerate(tasks_text.split("\n"), 1):
+            candidates: list[str] = []
+            if domain == "code":
+                candidates = [m.group(0) for m in CODE_PATH_RE.finditer(line)]
+            arrow = re.search(r"→\s*(\S+)", line)
+            if arrow and ("/" in arrow.group(1)):
+                candidates.append(arrow.group(1))
+            for path_text in candidates:
+                if not (root / path_text).exists():
+                    findings.append(Finding(
+                        "WARN", "path-missing", f"{name}/tasks.md:{i}",
+                        f"路径不存在: {path_text}（若应由更早任务创建可忽略；否则规格不足）",
+                    ))
+
+        # d. NEEDS CLARIFICATION 与 [~] 阻塞暴露
+        nc_lines = []
+        in_nc = False
+        for line in proposal_text.split("\n"):
+            if NEEDS_CLARIFICATION_RE.match(line):
+                in_nc = True
+                continue
+            if in_nc and re.match(r"^##\s+", line):
+                in_nc = False
+            if in_nc and line.strip().startswith("- "):
+                nc_lines.append(line.strip()[:80])
+        if nc_lines:
+            findings.append(Finding(
+                "INFO", "needs-clarification", f"{name}/proposal.md",
+                f"NEEDS CLARIFICATION 有 {len(nc_lines)} 条——apply 遇到相关任务会暂停；硬上限 3 条",
+            ))
+        for i, line in enumerate(tasks_text.split("\n"), 1):
+            if BLOCKED_TASK_RE.match(line):
+                findings.append(Finding(
+                    "INFO", "blocked-task", f"{name}/tasks.md:{i}",
+                    f"阻塞任务: {line.strip()[:80]}",
+                ))
+
+    return findings
+
+
 def check_all(root: Path, verbose: bool = False) -> list[Finding]:
-    """主检测逻辑"""
     findings: list[Finding] = []
 
     # 收集所有 reference 文件
@@ -336,7 +463,7 @@ def check_all(root: Path, verbose: bool = False) -> list[Finding]:
     return findings
 
 
-def format_findings(findings: list[Finding], as_json: bool) -> str:
+def format_findings(findings: list[Finding], as_json: bool, mode: str = "skill") -> str:
     if as_json:
         return json.dumps(
             [
@@ -353,14 +480,14 @@ def format_findings(findings: list[Finding], as_json: bool) -> str:
         )
 
     if not findings:
-        return "✅ check_refs: 无问题"
+        return f"✅ check_refs ({mode}): 无问题"
 
     errors = [f for f in findings if f.severity == "ERROR"]
     warns = [f for f in findings if f.severity == "WARN"]
     infos = [f for f in findings if f.severity == "INFO"]
 
     lines = []
-    lines.append(f"check_refs 报告: {len(errors)} error(s), {len(warns)} warning(s), {len(infos)} info(s)")
+    lines.append(f"check_refs ({mode}) 报告: {len(errors)} error(s), {len(warns)} warning(s), {len(infos)} info(s)")
     lines.append("")
 
     for f in findings:
@@ -372,25 +499,42 @@ def format_findings(findings: list[Finding], as_json: bool) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
-        description="跨文件引用一致性 lint（specmark references/ 专用）",
+        description="引用与产物一致性 lint（--skill-root 查 skill 仓库；--project 查用户项目活动变更）",
     )
-    ap.add_argument("--root", default=".", help="项目根目录（默认 .）")
+    ap.add_argument("--skill-root", default=None,
+                    help="specmark skill 仓库根（含 references/ 与 SKILL.md）")
+    ap.add_argument("--project", default=None,
+                    help="用户项目根（含 specmark/changes/），运行产物任务 lint")
+    ap.add_argument("--root", default=None,
+                    help="[Deprecated] 等价 --skill-root；--root 的「项目根」语义已由 --project 承接")
     ap.add_argument("--json", action="store_true", help="JSON 格式输出")
     ap.add_argument("--verbose", action="store_true", help="输出 INFO 级发现")
     args = ap.parse_args(argv)
 
-    root = Path(args.root).resolve()
+    if args.root and not args.skill_root:
+        print("[WARN] --root 已弃用且语义易混淆：查 skill 仓库用 --skill-root，查用户项目用 --project；本次按 --skill-root 处理",
+              file=sys.stderr)
+
+    if args.project:
+        mode = "project"
+        root = Path(args.project).resolve()
+    else:
+        mode = "skill"
+        root = Path(args.skill_root or args.root or ".").resolve()
+
     if not root.is_dir():
         print(f"error: 目录不存在: {root}", file=sys.stderr)
         return 2
 
-    findings = check_all(root, verbose=args.verbose)
+    findings = check_project(root, verbose=args.verbose) if mode == "project" \
+        else check_all(root, verbose=args.verbose)
 
-    # 过滤 INFO（除非 --verbose）
-    if not args.verbose:
+    # 过滤 INFO（除非 --verbose）；项目模式的 INFO（NEEDS CLARIFICATION / 阻塞任务）
+    # 是该模式的主要产出，不过滤
+    if not args.verbose and mode == "skill":
         findings = [f for f in findings if f.severity != "INFO"]
 
-    print(format_findings(findings, args.json))
+    print(format_findings(findings, args.json, mode))
 
     has_errors = any(f.severity == "ERROR" for f in findings)
     return 1 if has_errors else 0
