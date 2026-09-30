@@ -43,10 +43,7 @@ yarn-error.log*
 # Meta
 .meta
 docs/
-# 测试代码（开发期使用，不入仓库）
-tests/
-**/tests/
-**/test/
+# 测试套件随仓库版本化（tests/ 不再忽略）
 # Darwin skill 优化产物（开发期使用，不入仓库）
 results.tsv
 test-prompts.json
