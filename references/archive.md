@@ -108,7 +108,7 @@
 
    **失败处理：** 若脚本退出非 0（锁竞争退出码 2；完整性门禁/输入错误退出码 1；平台无 fcntl 退出码 3），展示 stderr 与 JSON `error_code`/`remedy`，不视为已归档；用户可重试、换 `--date` 或按 `remedy` 行动。
 
-   **误归档恢复：** 用 `bash $SKILL/scripts/archive_change.sh restore <archive-dir-or-name>`（同一把 change 级锁内校验 → 原子移回 `changes/` → 删 meta.json → 按 synced 状态提示主 specs 是否需反向处理）。**禁止手动 mv**——见 `references/troubleshooting.md`。
+   **误归档恢复：** 用 `bash $SKILL/scripts/archive_change.sh restore <archive-dir-or-name>`（同一把 change 级锁内校验 → 原子移回 `changes/` → 删 meta.json → 按 synced 状态提示主 specs 是否需反向处理）。**禁止手动 mv**——见 `troubleshooting.md`。
 
 6. **显示摘要**
 

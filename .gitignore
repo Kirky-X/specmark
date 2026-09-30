@@ -54,3 +54,7 @@ darwin-result-card.png
 .ruff_cache/
 # Specmark/openspec 临时产物
 openspec/
+
+# Specmark/openspec 临时产物（全局规则 24：禁止入 git）
+specmark/
+openspec/
