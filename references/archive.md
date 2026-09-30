@@ -10,7 +10,7 @@
 
    归档目录 `specmark/archive/` 是只读历史。`$SKILL/scripts/archive_change.sh` 在创建归档根时会放置 `specmark/archive/.readonly` 哨兵；该脚本对归档目录的**唯一允许写入是追加新条目**，拒绝覆盖/删除既有归档。
    - 若用户请求"修改/删除/重命名既有归档条目"：拒绝，提示新建 change 处理后续变更。
-   - 实际归档操作（步骤 4 的可选 sync + 步骤 5 的 mv + 写 meta.json）**必须**通过 `$SKILL/scripts/archive_change.sh` 执行（内含 change 级 flock、只读强制、commit SHA 锚定），不由 AI 用文件系统工具手动 mv——手动 mv 绕过锁与只读强制，违反确定性逻辑代码化的核心约束。
+   - 实际归档操作（步骤 4 的可选 sync + 步骤 5 的 mv + 写 meta.json）**必须**通过 `$SKILL/scripts/archive_change.sh` 执行（内含 change 级 fcntl 进程锁、只读强制、commit SHA 锚定），不由 AI 用文件系统工具手动 mv——手动 mv 绕过锁与只读强制，违反确定性逻辑代码化的核心约束。
 
 1. **若未提供变更名，提示选择**
 
@@ -19,7 +19,6 @@
    用 **Glob 工具**列 `specmark/changes/*/` 目录。用 **AskUserQuestion 工具**让用户选。
 
    仅显示活动变更（未已归档）。
-   若可用，显示每个变更所用 schema。
 
    **重要**：不要猜测或自动选变更。总让用户选。
 
@@ -31,18 +30,16 @@
    bash $SKILL/scripts/check_phase.sh artifacts <name>
    ```
 
-   脚本输出 JSON，含 `proposal`、`design`、`tasks`、`specs`、`spec_count`、`all_present` 字段。`all_present=1` 表示产物完整。
+   脚本输出 JSON，含 `proposal`、`design`、`tasks`、`specs`、`spec_count`、`all_present` 字段（缺失时附 `remedy`）。`all_present=1` 表示产物完整。
 
    这告诉你：
-   - `schemaName`：使用的工作流（从 `tasks.md` 内容推断，若文件存在）
    - `artifacts`：产物文件存在性（`proposal.md` / `design.md` / `tasks.md` 各自存在或缺失）
    - `specs`：delta spec 是否存在（`spec_count` 给出数量）
 
    **若任一产物文件缺失：**
    - 显示警告列出缺失的产物文件
    - **🔴 CHECKPOINT · 🛑 STOP：用 AskUserQuestion 确认用户是否要带缺失产物继续归档；默认建议先完成，不静默归档。**
-   - 用 **AskUserQuestion 工具**确认用户想继续
-   - 用户确认后继续
+   - 用户确认后继续（归档执行时传 `--allow-unfinished`，缺失会记入 meta.json 豁免快照）
 
 3. **检查任务完成状态**
 
@@ -54,16 +51,16 @@
 
    脚本输出 JSON：
    - `ready=true` + `total`：所有任务完成，可归档
-   - `ready=false` + `remaining`/`total`：仍有未完成任务
+   - `ready=false` + `remaining`/`total`/`blocked`：仍有未完成任务（阻塞 `[~]` 计入未完成）
    - `ready=false` + `reason="missing artifacts"`：产物文件缺失
+   - 任一非 ready 结果都带 `remedy` 字段，按其行动
 
-   也可用 `bash $SKILL/scripts/check_phase.sh tasks <name>` 获取更详细的任务计数（含原始/收敛分类）。
+   也可用 `bash $SKILL/scripts/check_phase.sh tasks <name>` 获取更详细的任务计数（含原始/收敛分类、阻塞清单、收敛轮数）。
 
    **若发现未完成任务：**
-   - 显示警告显示未完成任务数
+   - 显示警告显示未完成任务数（含阻塞任务）
    - **🔴 CHECKPOINT · 🛑 STOP：带未完成任务归档会让 spec 与代码永久脱钩；用 AskUserQuestion 显式确认，并在归档摘要中记录跳过数量。**
-   - 用 **AskUserQuestion 工具**确认用户想继续
-   - 用户确认后继续
+   - 用户确认后继续（归档执行时传 `--allow-unfinished`，快照记入 meta.json 的 `unfinished` 字段；不传时脚本**拒绝归档**退出 1——脚本是硬门禁，AskUserQuestion 只决定是否传豁免 flag）
 
    **若无任务文件：** 不带任务相关警告继续。
 
@@ -92,31 +89,31 @@
 
 5. **执行归档（通过 `$SKILL/scripts/archive_change.sh`）**
 
-   实际的 mv + 只读哨兵维护 + change 级 flock + commit SHA 锚定由确定性执行器完成：
+   实际的 mv + 只读哨兵维护 + change 级锁 + commit SHA 锚定由确定性执行器完成：
 
    ```bash
-   bash $SKILL/scripts/archive_change.sh <name> [--sync] [--date YYYY-MM-DD]
+   bash $SKILL/scripts/archive_change.sh <name> [--sync] [--date YYYY-MM-DD] [--allow-unfinished]
    ```
 
-   该脚本（确定性逻辑代码化，不由 AI 手动 mv）：
-   - 创建 `specmark/archive/.readonly` 哨兵（若缺失），并把归档根标记为只读历史；
-   - 获取 change 级独占 flock（`specmark/.locks/<name>.lock`，最多等 10s）防并发损坏；
-   - **只读强制**：目标 `specmark/archive/<date>-<name>` 已存在时报错退出，拒绝覆盖；
-   - `--sync` 时对每个 delta spec 调 `$SKILL/scripts/merge_delta_spec.py`（见步骤 4）；
+   该脚本（判定与写操作实现在 `$SKILL/scripts/specmark_state.py`，不由 AI 手动 mv）：
+   - 获取 change 级独占 **fcntl 进程锁**（`specmark/.locks/<name>.lock`，非阻塞轮询最多等 10s，竞争退出码 2；fcntl 为 POSIX 标准，Linux/WSL/macOS 可用）防并发损坏；
+   - **完整性门禁**：存在未完成任务（含 `[~]` 阻塞）或缺失 proposal/design 时**拒绝归档**退出 1（结构化 `error_code` + `remedy`）；仅传 `--allow-unfinished`（须先经用户确认）才放行，并把 `unfinished` 快照写入 meta.json；
+   - **只读强制**：创建 `specmark/archive/.readonly` 哨兵（若缺失）；目标 `specmark/archive/<date>-<name>` 已存在时报错退出，拒绝覆盖（锁内二次检查，race-safe）；
+   - `--sync` 时对每个 delta spec 调 `$SKILL/scripts/merge_delta_spec.py`（见步骤 4）；合并先全部写入临时文件、全部成功后一次性原子替换——**任何失败不落半程状态**；
    - 原子 `mv specmark/changes/<name> → specmark/archive/<date>-<name>`；
-   - 清理锁文件 `specmark/.locks/<name>.lock`；
-   - 清理空父目录：若 `specmark/changes/` 或 `specmark/.locks/` 变空则自动删除；
-   - 写 `specmark/archive/<date>-<name>/meta.json`：`{"change": "<name>", "archived_at": "YYYY-MM-DD"(UTC), "commit_sha": "<git HEAD 或 null>", "synced": <bool>}`——把归档锚定到具体 commit。
+   - 写 `specmark/archive/<date>-<name>/meta.json`：`{"change", "archived_at"(UTC), "commit_sha", "synced", ["unfinished" 豁免快照]}`——把归档锚定到具体 commit；锁文件按设计保留在 `.locks/`（持有期间删除会造成假互斥竞态，少量累积无害），`changes/` 变空时自动清理；
+   - 在 `specmark/.specmark-version` 记录首次使用的工作流格式版本（升级兼容判断用）。
 
    **关于路径：** 归档目录 `specmark/archive/` 与活动目录 `specmark/changes/` 分离 —— 便于 git ignore 活动 `specmark/changes/` 内容同时保留历史归档可追溯。活动 changes 是工作区产物（可丢弃、可重建），归档是长期历史记录（需版本控制保留）。
 
-   **失败处理：** 若脚本退出非 0（锁竞争退出码 2；其他错误退出码 1），展示 stderr，不视为已归档；用户可重试或换 `--date`。
+   **失败处理：** 若脚本退出非 0（锁竞争退出码 2；完整性门禁/输入错误退出码 1；平台无 fcntl 退出码 3），展示 stderr 与 JSON `error_code`/`remedy`，不视为已归档；用户可重试、换 `--date` 或按 `remedy` 行动。
+
+   **误归档恢复：** 用 `bash $SKILL/scripts/archive_change.sh restore <archive-dir-or-name>`（同一把 change 级锁内校验 → 原子移回 `changes/` → 删 meta.json → 按 synced 状态提示主 specs 是否需反向处理）。**禁止手动 mv**——见 `references/troubleshooting.md`。
 
 6. **显示摘要**
 
    显示归档完成摘要，含：
    - 变更名
-   - 使用 schema
    - 归档位置
    - delta spec 是否已同步（若适用）
    - 任何警告备注（未完成产物/任务）
@@ -127,7 +124,6 @@
 ## 归档完成
 
 **变更：** <change-name>
-**Schema：** <schema-name>
 **归档到：** specmark/archive/YYYY-MM-DD-<name>/
 **Commit SHA：** <git HEAD 40-hex 或 "null"（无 git 时）>  ← 锚定到 meta.json
 **Delta Specs：** ✓ 已同步到主 specs（或 "无 delta spec" 或 "随变更归档（未同步）"）
@@ -142,7 +138,7 @@
 - 不在警告上阻塞归档 —— 仅告知并确认
 - 变更目录整体移到归档（含 specs/ 目录，若存在）；无单独配置文件
 - 显示清晰的发生了什么摘要
-- **归档执行必须走 `$SKILL/scripts/archive_change.sh`** —— 它内含只读哨兵、change 级 flock、commit SHA 锚定；不手动 mv
+- **归档执行必须走 `$SKILL/scripts/archive_change.sh`** —— 它内含只读哨兵、change 级 fcntl 进程锁、完整性门禁、commit SHA 锚定；不手动 mv
 - **归档目录只读** —— `specmark/archive/.readonly` 哨兵存在；既有归档条目禁止修改/删除/重命名，只允许追加新条目
 - delta spec 同步仅在传入 `--sync` flag 时执行；默认不同步，delta spec 随变更归档；同步由 `$SKILL/scripts/merge_delta_spec.py` 确定性完成（不启动 LLM 子 agent）
 - 归档后 delta spec 保留在 `specmark/archive/YYYY-MM-DD-<name>/specs/` 中，可追溯

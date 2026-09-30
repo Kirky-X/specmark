@@ -6,7 +6,7 @@
 
 **Flags**：
 
-- `--auto-commit`：每完成一个任务（标记 `- [x]` 后）自动 `git commit`，消息形如 `feat(<change>): [T###] <任务描述简述>`，同时提交代码改动与 `tasks.md` 复选框翻转。**默认关闭**——不传时保持现有行为（不自动 commit，由用户自行决定提交节奏与粒度）。仅在仓库为 git 且当前可提交时生效；非 git 仓库静默跳过并告知用户。
+- `--auto-commit`：每完成一个任务（标记 `- [x]` 后）自动 `git commit`，消息形如 `feat(<change>): [T###] <任务描述简述>`，**只提交本任务改动的代码文件，不提交 `specmark/` 路径**（`tasks.md` 复选框翻转留在工作区——与「活动 changes 不入库、归档才保留」的约定兼容；`git add -f` 对抗用户 gitignore 意图，禁止）。**默认关闭**——不传时保持现有行为（不自动 commit，由用户自行决定提交节奏与粒度）。仅在仓库为 git 且当前可提交时生效；非 git 仓库静默跳过并告知用户。
 
 **Steps**
 
@@ -19,9 +19,9 @@
 
    总是宣布："使用变更：<name>" 及如何覆盖（如 `/specmark apply <other>`）。
 
-2. **检查状态以理解 schema**
+2. **检查状态以理解进度**
 
-   读 `specmark/changes/<name>/tasks.md` 并检查复选框状态（`- [ ]` 未完成 / `- [x]` 完成）以了解进度。
+   读 `specmark/changes/<name>/tasks.md` 并检查复选框状态（`- [ ]` 未完成 / `- [x]` 完成 / `- [~]` 阻塞）以了解进度。
 
    同时**必须**调用确定性脚本获取精确任务计数（规则 3：确定性逻辑禁止交给模型）：
 
@@ -29,12 +29,11 @@
    bash $SKILL/scripts/check_phase.sh tasks <name>
    ```
 
-   脚本输出 JSON，含 `total`、`completed`、`remaining`、`original_total`、`original_completed`、`convergence_total`、`convergence_completed`、`all_original_done`、`all_done`。用这些数值而非手动计数。
+   脚本输出 JSON，含 `total`、`completed`、`remaining`、`open`、`blocked`、`blocked_items`、`original_total`、`original_completed`、`convergence_total`、`convergence_completed`、`convergence_rounds`、`all_original_done`、`all_done`。用这些数值而非手动计数；脚本非 0 退出时按 `remedy` 字段行动。
 
    这告诉你：
-   - `schemaName`：使用的工作流（通常 "spec-driven"）
-   - 哪个产物含任务（spec-driven 通常 `tasks.md`）
-   - 精确的任务进度计数（由脚本计算）
+   - 哪个产物含任务（恒为 `tasks.md`）
+   - 精确的任务进度计数与阻塞清单（由脚本计算）
 
 3. **读取 apply 上下文**
 
@@ -61,9 +60,9 @@
 5. **显示当前进度**
 
    基于步骤 2 的 `check_phase.sh tasks` 输出显示：
-   - 使用 schema
    - 进度："N/M 任务完成"（用脚本的 `completed`/`total` 值）
-   - 原始任务 vs 收敛任务进度（用脚本的 `original_*` 和 `convergence_*` 值）
+   - 原始任务 vs 收敛任务进度与收敛轮数（用脚本的 `original_*`、`convergence_*`、`convergence_rounds` 值）
+   - 阻塞任务清单（用脚本的 `blocked`/`blocked_items` 值）
    - 剩余任务概览
    - 当前状态指引（用脚本的 `all_original_done`/`all_done` 判断）
    - 若 `all_done=true`：所有任务已完成，建议归档
@@ -83,9 +82,9 @@
      - `general`：执行任务描述中的行动
    - 保持改动最小且聚焦于那一项任务
    - **立即**在任务文件中标记完成：`- [ ]` → `- [x]`
-   - **若传了 `--auto-commit`（仅 `code` 域生效）**：立即提交，把本任务的代码改动 + `tasks.md` 复选框翻转一起入栈：
+   - **若传了 `--auto-commit`（仅 `code` 域生效）**：立即提交，**只 add 本任务改动的代码文件**（`tasks.md` 翻转不入提交，与「活动 changes 不入库」约定兼容）：
      ```bash
-     git add <本任务改动的文件> specmark/changes/<name>/tasks.md
+     git add <本任务改动的文件>
      git commit -m "feat(<name>): [T###] <任务简述>"
      ```
      仅 git 仓库生效；非 git 跳过并告知。提交失败（如 pre-commit 钩子拒绝）→ 暂停循环，报告错误，不跳过。
@@ -103,6 +102,8 @@
    - 遇错误或阻塞 → 报告并等待指引
    - 用户打断
 
+   **暂停标记约定：** PAUSE 时把当前任务标记为阻塞态 `- [~]`，行尾附原因（`- [~] [T003] [P2] <描述> — blocked: <原因>`）；恢复实施时改回 `- [ ]`。`[~]` 在 `check_phase.sh tasks` 与 `status.sh` 计数中显性暴露（`blocked`/`blocked_items` 字段），归档门禁把阻塞任务计为未完成。
+
 7. **完成或暂停时显示状态**
 
    显示：
@@ -114,7 +115,7 @@
 **实施中输出**
 
 ```
-## 实施中：<change-name> (schema: <schema-name>)
+## 实施中：<change-name>
 
 正在做任务 3/7：<任务描述>
 [...实施中...]
@@ -131,7 +132,6 @@
 ## 实施完成
 
 **变更：** <change-name>
-**Schema：** <schema-name>
 **进度：** 7/7 任务完成 ✓
 
 ### 本次会话完成
@@ -148,7 +148,6 @@
 ## 实施暂停
 
 **变更：** <change-name>
-**Schema：** <schema-name>
 **进度：** 4/7 任务完成
 
 ### 遇到问题
@@ -184,14 +183,14 @@
 
 **检查（进入循环前全部必须通过）：**
 
-1. **占位符扫描** —— grep `tasks.md` 找 `propose.md` §2 定义的禁用短语清单。要求零匹配。
-2. **文件路径存在性** —— 每个任务描述含至少一个文件路径。无路径的任务规格不足，会导致实施中途停滞。
-3. **隐藏依赖检查** —— 对每个任务 N，验证任务 N+1 所需确实由任务 N（或更早）产出。顺序执行意味着缺失依赖阻塞整条链。
-4. **NEEDS CLARIFICATION 扫描** —— 读 `proposal.md` 找 `## NEEDS CLARIFICATION` 节。若任一项影响早期任务，**现在**暴露给用户，在开始前，而非实施中途停滞。
+1. **占位符扫描** —— 由确定性脚本承载：跑 `python3 $SKILL/scripts/check_refs.py --project <project-root>`，`placeholder` ERROR 必须为零（propose.md §2 禁用短语清单）。
+2. **文件路径存在性** —— 同一脚本输出的 `path-missing` WARN 逐条确认：路径应由更早任务创建的可放行，否则规格不足。
+3. **隐藏依赖检查** —— 对每个任务 N，验证任务 N+1 所需确实由任务 N（或更早）产出。顺序执行意味着缺失依赖阻塞整条链。（语义判断，由 agent 承载。）
+4. **NEEDS CLARIFICATION 扫描** —— 同一脚本输出的 `needs-clarification` INFO 列出条目。若任一项影响早期任务，**现在**暴露给用户，在开始前，而非实施中途停滞。
 
 **失败时：**
 
-- 若发现占位符或缺失路径 → 建议 `/specmark propose` 修 `tasks.md` 后再 apply。不静默自己修任务；那是 propose 的职责。
+- 脚本 ERROR 非零 → 建议 `/specmark propose` 修 `tasks.md` 后再 apply。不静默自己修任务；那是 propose 的职责。
 - 若发现隐藏依赖 → 建议通过 `/specmark propose` 重排或拆分任务。
 - 若 NEEDS CLARIFICATION 项阻塞 → 提示用户解决（或接受记录的默认值）后进入循环。
 
@@ -230,7 +229,7 @@ cd ../<change-name>-worktree
 **converge 完成后：**
 
 1. 无追加任务 → 展示收敛结果，自动衔接下一步
-2. 有追加任务 → 展示追加的任务 → 自动回到 `apply` 关闭它们 → 再次 converge → 循环 ≤ 3 次；超过 3 次由 converge 强制停止并展示 3 轮摘要（与 converge.md line 79-83、SKILL.md line 150 一致）
+2. 有追加任务 → 展示追加的任务 → 自动回到 `apply` 关闭它们 → 再次 converge → 循环上限由脚本计数强制：每轮 converge 后跑 `bash $SKILL/scripts/check_phase.sh tasks <name>` 读 `convergence_rounds`，**> 3** 由 converge 强制停止并展示 3 轮摘要（与 converge.md、SKILL.md「自动链失败模式」表一致）
 
 **converge 彻底完成后，主动向用户提问下一步：**
 
@@ -249,7 +248,6 @@ cd ../<change-name>-worktree
 ## 实施完成
 
 **变更：** <change-name>
-**Schema：** <schema-name>
 **进度：** N/N 任务完成 ✓
 
 自动进入 converge 对账…

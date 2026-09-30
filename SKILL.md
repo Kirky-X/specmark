@@ -26,21 +26,22 @@ license: MIT
 
 **Flags 速记**：
 
-- `apply --auto-commit`：每任务完成后自动 `git commit`（默认关闭，不破现有行为；详见 `references/apply.md`）。
+- `apply --auto-commit`：每任务完成后自动 `git commit`（仅提交本任务改动的代码文件，不提交 `specmark/` 路径——与「归档才入库」的约定兼容；默认关闭，详见 `references/apply.md`）。
 - `archive --sync`：归档时把 delta spec 同步到 `specmark/specs/<cap>/spec.md`（由 `$SKILL/scripts/merge_delta_spec.py` 确定性合并，不启动 LLM；详见 `references/archive.md`）。
-- **归档只读**：`specmark/archive/` 由 `$SKILL/scripts/archive_change.sh` 维护 change 级 flock + commit SHA 锚定，并以 `.readonly` 哨兵文件作为只读**约定**标记（实际强制约束由「拒绝覆盖同名归档目标」实现）；既有归档条目禁止修改，只允许追加。
+- `archive --allow-unfinished`：带未完成任务/缺失产物归档（**必须先经用户 AskUserQuestion 确认**），豁免快照记入 meta.json（详见 `references/archive.md`）。
+- **归档只读**：`specmark/archive/` 由 `$SKILL/scripts/archive_change.sh` 维护 change 级 fcntl 进程锁 + commit SHA 锚定，并以 `.readonly` 哨兵文件作为只读**约定**标记（实际强制约束由「拒绝覆盖同名归档目标」实现）；既有归档条目禁止修改，只允许追加。误归档用 `archive_change.sh restore <archive-name>` 恢复（见 `references/troubleshooting.md`），**禁止手动 mv**。
 - **归档预览**：`archive --dry-run` 预览归档结果而不执行实际操作（详见 `references/archive.md`）。
-- **确定性工具（必须调用，禁止手动替代）**。约定：下文 `$SKILL` 指本 skill 的安装目录（如 `~/.zcode/skills/specmark`）；脚本从用户项目 cwd 调用，`--root` 缺省时自动取调用方 cwd 所在 git 仓库顶层：
+- **确定性工具（必须调用，禁止手动替代）**。约定：下文 `$SKILL` 指本 skill 的安装目录（如 `~/.zcode/skills/specmark`）；脚本从用户项目 cwd 调用，`--root` 缺省时自动取调用方 cwd 所在 git 仓库顶层。判定实现统一在 `$SKILL/scripts/specmark_state.py`（单一谓词源），`.sh` 为薄入口：
 
-  | 脚本 | 用途 | 何时调用 | 子命令 |
-  |------|------|----------|--------|
-  | `$SKILL/scripts/check_phase.sh` | 阶段完成确定性判定 | propose/apply/converge/archive 各阶段 | `complexity` / `tasks` / `converge-readiness` / `archive-readiness` / `artifacts` |
-  | `$SKILL/scripts/status.sh` | 全局状态查询 | status 子命令 | `--json` 可选 |
-  | `$SKILL/scripts/check_refs.py` | 跨文件引用一致性 lint | analyze 阶段、修改 reference 文件后 | `--root` / `--json` / `--verbose` |
-  | `$SKILL/scripts/archive_change.sh` | 归档执行器（含 flock + 只读强制） | archive 子命令步骤 5 | `--sync` / `--date` / `--dry-run` |
+  | 脚本 | 用途 | 何时调用 | 子命令 / 主要参数 |
+  |------|------|----------|------------------|
+  | `$SKILL/scripts/check_phase.sh` | 阶段完成确定性判定 + 三档复杂度 | propose/apply/converge/archive 各阶段 | `complexity` / `tasks` / `converge-readiness` / `archive-readiness` / `artifacts`；`--json` 静默人类摘要 |
+  | `$SKILL/scripts/status.sh` | 全局状态查询（含 next_command 确定性路由） | status 子命令 | `--json` 可选 |
+  | `$SKILL/scripts/check_refs.py` | 引用与产物 lint | analyze 阶段用 `--project <用户项目>`；修改 skill 自身文档后用 `--skill-root <skill 仓库>` | `--json` / `--verbose` |
+  | `$SKILL/scripts/archive_change.sh` | 归档 / 恢复执行器（fcntl 锁 + 只读强制 + 完整性门禁） | archive 子命令步骤 5；误归档恢复 | `--sync` / `--date` / `--dry-run` / `--allow-unfinished`；`restore <archive-name>` |
   | `$SKILL/scripts/merge_delta_spec.py` | delta spec 确定性合并 | archive --sync 时由 archive_change.sh 自动调用 | `--main` / `--delta` / `--out` / `--dry-run` |
 
-  > **规则 3 对齐**：上述脚本覆盖的判定逻辑（任务计数、复杂度评估、归档就绪、引用一致性）属于确定性逻辑，禁止 agent 手动读文件后自行计算。
+  > **规则 3 对齐**：上述脚本覆盖的判定逻辑（任务计数、复杂度评估、归档就绪、引用一致性、阶段推断）属于确定性逻辑，禁止 agent 手动读文件后自行计算。脚本判定不通过时按输出的 `remedy` 字段行动，不自行读文件重判。
 
 ## Domain（领域类型）
 
@@ -104,11 +105,11 @@ flowchart LR
 
    | 阶段 | 必须调用的脚本 |
    |------|------------------|
-   | propose | `$SKILL/scripts/check_phase.sh complexity <name>`（产物完成后评估复杂度） |
-   | apply | `$SKILL/scripts/check_phase.sh tasks <name>`（检查状态 + 显示进度） |
+   | propose | `$SKILL/scripts/check_phase.sh complexity <name>`（产物完成后三档判定，见「自动链短路」节） |
+   | apply | `$SKILL/scripts/check_phase.sh tasks <name>`（检查状态 + 显示进度，含阻塞与收敛轮数） |
    | converge | `$SKILL/scripts/check_phase.sh converge-readiness <name>`（验证 apply 完成） |
    | archive | `$SKILL/scripts/check_phase.sh artifacts <name>` + `$SKILL/scripts/check_phase.sh archive-readiness <name>` + `$SKILL/scripts/archive_change.sh`（执行归档） |
-   | analyze | `$SKILL/scripts/check_refs.py --root <project-root>`（跨文件引用一致性） |
+   | analyze | `$SKILL/scripts/check_refs.py --project <project-root>`（产物任务 lint：占位符/ID 格式/路径存在性） |
    | status | `$SKILL/scripts/status.sh`（全局状态查询） |
 
 ## 子命令选用指南
@@ -202,7 +203,7 @@ flowchart TD
 | propose → analyze | propose 产物创建失败（如目录写入错误）                   | 报错停止，不进 analyze；提示用户检查权限或路径                                               |
 | analyze → apply   | analyze 发现 CRITICAL 级问题                             | 暂停自动链；展示报告；用 AskUserQuestion 问：修复后继续 / 跳过直接实施 / 查看报告            |
 | apply → converge  | apply 有任务被 PAUSE（阻塞/不清）                        | 不自动进 converge；展示暂停原因，等待用户决策                                                |
-| converge → 提问   | converge 追加任务后回到 apply，循环 **> 3 次**仍有新缺口 | **硬规则强制停止**；展示 3 轮摘要；用 AskUserQuestion 问用户：接受当前状态 / 手动介入 / 暂停 |
+| converge → 提问   | converge 追加任务后回到 apply，收敛轮数（脚本 `tasks` 输出的 `convergence_rounds` 计数）**> 3** 仍有新缺口 | **硬规则强制停止**；展示 3 轮摘要；用 AskUserQuestion 问用户：接受当前状态 / 手动介入 / 暂停 |
 | 任意阶段          | 用户在阶段执行中发出新指令                               | 立即停止当前阶段，响应用户新指令                                                             |
 
 > 更多工作流故障场景与恢复方法（apply 中途发现 design 有误、误归档回滚等）详见 `references/troubleshooting.md`。
@@ -216,17 +217,25 @@ flowchart TD
 
 **用户可随时中断自动链。** 阶段执行中用户发出新指令时，立即停止当前阶段并响应用户。
 
-### 自动链短路（复杂度自适应）
+### 自动链短路（复杂度自适应，两段式协议）
 
-完整七阶段适合复杂变更，但对简单变更（单文件、<3 行改动、typo 修复）过重。自动链启动时做复杂度快评，按需缩短链路：
+完整七阶段适合复杂变更，但对简单变更（单文件、<3 行改动、typo 修复）过重。复杂度判定分**两段**——判定必须落在有产物可判的时点，此前只有模型启发式可用：
 
-| 复杂度 | 判定条件 | 链路 |
-|---------|----------|------|
-| **简单** | 单文件、任务数 ≤2、无跨模块影响 | `propose` → `apply`（跳过 clarify/analyze/converge） |
-| **中等** | 多文件但任务数 <5、单模块内 | `propose` → `analyze` → `apply` → `converge`（跳过 clarify） |
-| **复杂** | 任务数 ≥5 或跨 ≥3 模块或多能力域 | 完整七阶段 |
+**第一段：链启动时启发式预判（explore/clarify 衔接点，模型判断）**
 
-**判定由 `$SKILL/scripts/check_phase.sh complexity <name>` 确定性执行**（检查任务数、模块数、proposal scope 宽度）。
+此时尚无 change 目录与产物，`check_phase.sh complexity` 无从运行。由 agent 按**规模信号**粗粒度预判（用户描述涉及单文件、typo 级、<3 行改动 → 预判「简单」，可跳过 clarify 直入 propose）。这是唯一允许的模型侧复杂度判断，**必须在输出中显式标注**「启发式预判：简单/中等/复杂」。
+
+**第二段：propose 后脚本三档判定（唯一机制承载）**
+
+propose 产物完成后**必须**调用 `check_phase.sh complexity <name>`（规则 3）。输出三档，对齐链路表：
+
+| 档位 | 判定条件（脚本确定性计算） | 链路承载 |
+|------|---------------------------|----------|
+| **simple** | 任务数 ≤2 且模块数 ≤1 且非多域 | propose 后跳过 analyze/converge，直接 apply（clarify 已在第一段预判跳过） |
+| **medium** | 非 simple 且非 complex | `propose` → `analyze` → `apply` → `converge`（无 delta spec） |
+| **complex** | 任务数 ≥5 或模块数 ≥3 或 proposal Scope 跨多个能力域 | 完整链路 + 自动生成 delta spec（见 propose.md 4c） |
+
+**两段不一致时的硬规则**：第一段预判「简单」但脚本判定 ≥ medium → **必须补跑 analyze**，不沿用预判短路；脚本判定永远优先于预判。
 
 **用户可显式覆盖**：如「我知道这很简单，但走完整流程」→ 强制完整链路；或「这个很复杂但直接做」→ 强制短路。
 
@@ -240,9 +249,9 @@ flowchart TD
 | --- | ------------------------------------------------------ | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | 1   | 在 `explore` 模式写应用代码                            | explore 是只读思考模式；写代码会让"探索"变成"实施"，破坏阶段边界    | 想清楚后退出 explore，用 `propose` 落地变更，再 `apply` 实施                       |
 | 2   | 跳过 `propose` 直接 `apply`                            | 没有 proposal/design/tasks 就实施，spec 失去追溯依据，converge 失效 | 先 `/specmark propose` 生成全套产物（长程变更含 delta spec），再 `/specmark apply` |
-| 3   | 修改已归档的 change（`specmark/archive/` 下文件）      | 归档是只读历史；改动归档会让 spec 与历史代码脱钩                    | 新建 change 处理后续变更；归档内容只读                                             |
+| 3   | 修改已归档的 change（`specmark/archive/` 下文件），或误归档后手动 `mv` 回滚 | 归档是只读历史；手动 mv 绕过锁与只读强制，改动归档会让 spec 与历史代码脱钩 | 新建 change 处理后续变更；归档内容只读；**误归档用 `archive_change.sh restore <archive-name>` 恢复** |
 | 4   | `apply` 跳过未完成任务直接做下一个                     | 顺序执行是硬约束；跳过会让下游任务依赖缺失                          | 严格按 `tasks.md` 顺序；遇阻则 PAUSE，不跳过                                       |
 | 5   | `converge` 改写已有任务而非 append                     | append-only 是硬约束；改写会让历史任务不可追溯                      | 仅在 `## Phase N: Convergence` 段追加新任务                                        |
 | 6   | 在 `tasks.md` 留 `TBD` / `TODO` / "as needed" 等占位符 | 占位符让 apply 中途停滞；任务必须可执行                             | 拆为具体子任务，或写到 `proposal.md` 的 `## NEEDS CLARIFICATION`                   |
-| 7   | 手动读文件计算任务数/复杂度/归档就绪状态              | 违反规则 3（确定性逻辑禁止交给模型）；agent 计数可能出错          | 调用 `$SKILL/scripts/check_phase.sh` 对应子命令获取 JSON 结果                            |
+| 7   | 手动读文件计算任务数/复杂度/归档就绪状态，或用链启动预判代替脚本判定 | 违反规则 3（确定性逻辑禁止交给模型）；agent 计数可能出错。唯一例外：自动链启动时（产物尚不存在）的规模信号**启发式预判**，且须显式标注、propose 后以脚本判定为准 | 调用 `$SKILL/scripts/check_phase.sh` 对应子命令获取 JSON 结果，非 0 按 `remedy` 行动 |
 | 8   | 非 coding 场景用 code 域格式写任务                     | 交付物标识格式不匹配导致 apply 无法执行、converge 无法对账        | propose 时声明 `<!-- domain: <type> -->`，用对应域的交付物标识格式（见 propose.md） |

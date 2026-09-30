@@ -129,10 +129,10 @@
 
    若追加了收敛任务，自动回到 `apply` 关闭它们（无需用户手动调用）。apply 关闭后再次 converge 检查，直到无新缺口。
 
-   **硬规则：循环上限 3 次。** converge→apply→converge 循环超过 3 次仍有新缺口时，**强制停止**：
-   - 展示 3 轮收敛摘要（每轮追加了什么、为什么）
+   **硬规则：收敛轮数上限 3 次（脚本计数承载）。** 每次回到 apply 前后跑 `bash $SKILL/scripts/check_phase.sh tasks <name>`，读输出的 `convergence_rounds`（tasks.md 中 `## Phase N: Convergence` 节数，由脚本确定性计数）。超过 3 时**强制停止**：
+   - 展示各轮收敛摘要（每轮追加了什么、为什么）
    - 用 **AskUserQuestion 工具**问用户：接受当前状态归档 / 手动介入修改 spec / 暂停此变更
-   - 不自动第 4 次 converge
+   - 不自动第 4 次 converge；不自行数节替代脚本输出
 
 **输出**
 
@@ -162,4 +162,4 @@
 
 - 处于 `apply`（完成）与 `archive` 之间。自动链中由 apply 完成后自动触发。
 - 与 `analyze` 配对：analyze 找 apply 前的 spec↔tasks 漂移；converge 找 apply 后的 tasks↔交付物漂移。两者一起覆盖双向。
-- converge 追加任务后，自动回到 `apply` 关闭它们（循环上限 3 次）；`archive` 仅在所有 phase（含收敛 phase）都 `- [x]` 时运行。
+- converge 追加任务后，自动回到 `apply` 关闭它们（收敛轮数上限 3 次，由 `check_phase.sh tasks` 的 `convergence_rounds` 脚本计数强制）；`archive` 仅在所有 phase（含收敛 phase）都 `- [x]` 时运行（`archive_change.sh` 完整性门禁兜底，未完成任务被拒时按 `remedy` 行动）。

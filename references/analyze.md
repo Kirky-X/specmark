@@ -42,21 +42,23 @@
 
    若超过 50 个，保留 50 个最高严重度（CRITICAL → LOW）并追加末行：`... 还有 N 个发现已抑制（修复 CRITICAL/HIGH 后重跑 analyze）`。
 
-5b. **跨文件引用一致性检查（确定性脚本）**
+5b. **产物任务 lint（确定性脚本）**
 
-   在完成 6 个检测 pass 后，**必须**调用确定性脚本检查 specmark 引用文件的跨文件引用完整性：
+   在完成 6 个检测 pass 后，**必须**对用户项目跑确定性 lint（规则 3）：
 
    ```bash
-   python3 scripts/check_refs.py --root <project-root> --json
+   python3 $SKILL/scripts/check_refs.py --project <project-root> --json
    ```
 
-   脚本检测：
-   - 跨文件 section 引用（如 `propose.md §2`）是否指向真实存在的章节
-   - 跨文件 line 引用（如 `converge.md line 79-83`）是否指向有效行范围
-   - 共享概念在多文件间的一致性（如禁用短语清单、长程判定条件）
-   - reference 文件是否在 SKILL.md 中被引用
+   项目模式检测本变更的产物：
+   - tasks.md 占位符扫描（propose.md §2 禁用短语，硬规则零匹配 → ERROR）
+   - 任务 ID 三位零填充与唯一性、优先级取值域（→ ERROR）
+   - 任务内文件路径存在性（缺失 → WARN，可能由更早任务创建）
+   - NEEDS CLARIFICATION 条目数与 `[~]` 阻塞任务（→ INFO 暴露）
 
-   将脚本发现合并到分析报告中（ERROR 级映射为 HIGH 严重度，WARN 级映射为 MEDIUM）。
+   将脚本发现合并到分析报告中（ERROR 级映射为 HIGH 严重度，WARN 级映射为 MEDIUM，INFO 级原样附注）。
+
+   > 另一模式 `--skill-root <skill 仓库>` 检查 specmark skill 自身 references/ 的跨文件引用完整性（section/line 引用、共享概念漂移），仅在开发 specmark 本身时使用，不属于用户项目 analyze 流程。
 
 6. **输出报告 —— 只读，不写文件**
 

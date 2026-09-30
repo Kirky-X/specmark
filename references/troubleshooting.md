@@ -12,7 +12,7 @@ specmark 工作流中常见场景的恢复方法。
 | apply 任务描述不清 | PAUSE 当前任务 → `/specmark propose` 修正 tasks.md → 恢复 apply |
 | converge 循环超过 3 次 | 展示 3 轮摘要 → 用户选择接受/手动介入/暂停 |
 | 归档后发现 spec 有误 | 新建 change 处理修正（归档只读，不可修改） |
-| 误归档了未完成的变更 | 从 `specmark/archive/<date>-<name>/` 手动 mv 回 `specmark/changes/<name>/` |
+| 误归档了未完成的变更 | `bash $SKILL/scripts/archive_change.sh restore <archive-dir-or-name>`（禁止手动 mv） |
 | analyze 发现 CRITICAL 问题 | 自动链暂停 → 修复产物 → 重跑 analyze → 继续 apply |
 | 自动链误路由（进了错误子命令） | 发出新指令中断链路 → 显式调用正确子命令 |
 | delta spec 合并失败 | 检查 `specmark/scripts/merge_delta_spec.py` 输出 → 确认 delta spec 格式正确 → 重跑 `--dry-run` |
@@ -60,17 +60,18 @@ specmark 工作流中常见场景的恢复方法。
 **恢复步骤：**
 
 ```bash
-# 找到归档位置
-ls specmark/archive/*-<change-name>/
-
-# 移回活动目录
-mv specmark/archive/<date>-<change-name> specmark/changes/<change-name>
-
-# 删除 meta.json（它是归档标记）
-rm specmark/changes/<change-name>/meta.json
+# 用 restore 子命令恢复（接受完整归档目录名；短名无歧义时也可）
+bash $SKILL/scripts/archive_change.sh restore <date>-<change-name>
 ```
 
-恢复后运行 `/specmark apply` 继续未完成的任务。
+restore 在同一把 change 级锁内完成：校验活动区无同名冲突 → 原子移回 `specmark/changes/<name>/` → 删除 meta.json → 若该归档曾 `--sync`，提示主 specs 仍含其内容（如需回滚主规格须手工编辑 `specmark/specs/`，归档树只读约束不会自动反向合并）。
+
+**常见失败：**
+
+- `active_name_conflict`：活动区已有同名变更 → 先归档或移走它再 restore
+- `ambiguous_restore_ref`：短名匹配到多个归档条目 → 改用完整目录名（错误信息会列出候选项）
+
+恢复后运行 `/specmark apply` 继续未完成的任务。**全程不要手动 `mv`**——手动 mv 绕过锁与同名冲突校验，违反 archive.md 的只读强制约束。
 
 ### delta spec 合并失败
 
@@ -99,13 +100,15 @@ bash specmark/scripts/archive_change.sh <name> --sync
 
 **症状：** `archive_change.sh` 退出码 2，报 "无法获取锁"。
 
+**背景：** 归档锁是 change 级 fcntl 进程锁（`specmark/.locks/<name>.lock`，非阻塞轮询最多等 10s；Linux/WSL/macOS 可用，Windows 原生 Python 无 fcntl 时归档/恢复返回退出码 3）。锁文件在持有期间**不删除**——进程仍持有其锁，删除文件会让新进程锁到新 inode 形成假互斥。
+
 **恢复步骤：**
 
 ```bash
-# 检查谁持有锁
+# 检查谁持有锁（进程仍在运行则等它完成）
 lsof specmark/.locks/<name>.lock 2>/dev/null
 
-# 如果是残留锁（进程已不存在），删除锁文件
+# 确认无进程持有后，清理残留锁文件
 rm specmark/.locks/<name>.lock
 
 # 重试归档
@@ -175,11 +178,14 @@ bash specmark/scripts/check_phase.sh complexity <name>
 ### 检查文档一致性
 
 ```bash
-# 跨文件引用 lint
-python3 scripts/check_refs.py --verbose
+# 用户项目：活动变更产物 lint（占位符 / 任务 ID / 优先级 / 路径存在性）
+python3 $SKILL/scripts/check_refs.py --project <project-root>
+
+# specmark skill 仓库：references 跨文件引用 lint
+python3 $SKILL/scripts/check_refs.py --skill-root <skill-repo> --verbose
 
 # JSON 格式输出（CI 集成用）
-python3 scripts/check_refs.py --json
+python3 $SKILL/scripts/check_refs.py --project <project-root> --json
 ```
 
 ### 预览归档

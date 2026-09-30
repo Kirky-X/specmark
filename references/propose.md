@@ -90,7 +90,7 @@
    - 每创建一个产物后，重读 `specmark/changes/<name>/tasks.md` 复选框状态确认进度
    - 当 `proposal.md`、`design.md`、`tasks.md` 都存在且 `tasks.md` 列出每个已提交任务时停止
 
-   c. **长程变更自动生成 delta spec**（在 tasks.md 完成后评估）
+   c. **复杂度判定与 delta spec 生成**（在 tasks.md 完成后评估）
 
       **复杂度评估**：tasks.md 创建完成后，**必须**调用确定性脚本评估复杂度（规则 3：确定性逻辑禁止交给模型）：
 
@@ -98,11 +98,11 @@
       bash $SKILL/scripts/check_phase.sh complexity <name>
       ```
 
-      脚本输出 JSON，含 `complexity`（`short`/`long`）、`task_count`、`module_count`、`multi_domain` 及三项判定条件。`complexity=long` 即长程变更，需生成 delta spec；`complexity=short` 即短程变更，跳过。
+      脚本输出 JSON，含三档 `complexity`（`simple`/`medium`/`complex`）、`delta_spec`（是否生成 delta spec）、`task_count`、`module_count`、`multi_domain` 及各项判定条件。档位与链路承载的对齐关系见 SKILL.md「自动链短路」节。
 
-      **长程变更**（脚本输出 `"complexity": "long"`）：在 `specmark/changes/<name>/specs/` 下为每个受影响的能力域创建 delta spec 文件（`specs/<capability>/spec.md`）。每个 delta spec 描述该能力域在此变更中的**具体需求**——从 proposal.md 的 Scope/Requirements 和 design.md 的 Decision 中提取，聚焦可验证的行为规格（输入→预期输出、边界条件、错误行为）。
-
-      **短程变更**（脚本输出 `"complexity": "short"`）：跳过 spec 生成。proposal.md + design.md 已提供足够上下文。
+      - **complex**（`"complexity": "complex"`，即长程变更）：在 `specmark/changes/<name>/specs/` 下为每个受影响的能力域创建 delta spec 文件（`specs/<capability>/spec.md`）。每个 delta spec 描述该能力域在此变更中的**具体需求**——从 proposal.md 的 Scope/Requirements 和 design.md 的 Decision 中提取，聚焦可验证的行为规格（输入→预期输出、边界条件、错误行为）。
+      - **medium / simple**：跳过 spec 生成。proposal.md + design.md 已提供足够上下文。
+      - **两段不一致硬规则**：若自动链启动时曾预判「简单」（见 SKILL.md「自动链短路」节第一段），而本脚本判定为 `medium` 或 `complex` → **必须补跑 analyze**，不沿用预判短路。
 
       Delta spec 模板见下方 **specs/ 骨架**。完成后显示："Created specs/<capability>/spec.md"
 
@@ -134,7 +134,8 @@ analyze 完成后，展示结果并自动衔接下一步：
 
 - 创建实施所需的全部产物（proposal.md、design.md、tasks.md），遵循下方 **产物模板** 与 **任务编写标准** 章节定义的模板结构
 - **模板指令是约束，不是文件内容** —— 不要把模板注释、示例或占位标记复制进产物；它们指导你写什么，但绝不应出现在输出中
-- **长程变更由 `scripts/check_phase.sh complexity` 确定性判定**（任务数 ≥ 5、跨 ≥ 3 模块、或 proposal.md 涉及多个能力域）——不手动评估；脚本输出 `long` 时额外生成 `specs/<capability>/spec.md`；输出 `short` 时跳过
+- **复杂度由 `scripts/check_phase.sh complexity` 三档确定性判定**（simple：任务数 ≤2 且模块数 ≤1 且非多域；complex：任务数 ≥5、跨 ≥ 3 模块、或 proposal.md 涉及多个能力域）——不手动评估；输出 `complex` 时额外生成 `specs/<capability>/spec.md`，`simple`/`medium` 跳过
+- 自动链曾预判「简单」而脚本判定 ≥ medium 时，硬规则补跑 analyze（见 4c）
 - 创建新产物前总是读依赖产物（如写 `tasks.md` 前读 `proposal.md` 和 `design.md`）
 - 如果上下文严重不清，问用户 —— 但优先做合理决策保持动量
 - 如果同名变更已存在，问用户想继续它还是新建一个
@@ -322,13 +323,19 @@ tasks.md 用 **任务编写标准** 的 5 元素格式，按执行顺序列出�
 
 ### 4. 自检 — 完成前三项检查
 
-起草所有任务后，在宣布变更 apply-ready 前跑这三项检查。失败必须在交给 `apply` 前修复。
+起草所有任务后，在宣布变更 apply-ready 前跑这三项检查。失败必须在交给 `apply` 前修复。其中第 2、3 项由确定性脚本承载（规则 3）：
 
-| 检查              | 验证什么                                                                  |
-| ----------------- | ------------------------------------------------------------------------- |
-| **Spec 覆盖**     | `proposal.md` 中每个需求与 `design.md` 中每个决策都映射到 ≥1 任务。若存在 `specs/`，每条 delta spec Requirement 也必须映射到 ≥1 任务。未映射需求去 NEEDS CLARIFICATION 或加任务。 |
-| **占位符扫描**    | grep tasks.md 找 §2 中的禁用短语。要求零匹配。                            |
-| **类型一致**      | 任务 ID 零填充且唯一；优先级取自 {P0,P1,P2}；描述中文件路径指向已存在或更早任务会创建的文件。 |
+```bash
+python3 $SKILL/scripts/check_refs.py --project <project-root>
+```
+
+脚本输出 ERROR 级发现必须清零才可进入 apply。
+
+| 检查              | 验证什么                                                                  | 承载 |
+| ----------------- | ------------------------------------------------------------------------- | ---- |
+| **Spec 覆盖**     | `proposal.md` 中每个需求与 `design.md` 中每个决策都映射到 ≥1 任务。若存在 `specs/`，每条 delta spec Requirement 也必须映射到 ≥1 任务。未映射需求去 NEEDS CLARIFICATION 或加任务。 | agent（语义映射无法脚本化） |
+| **占位符扫描**    | §2 禁用短语在 tasks.md 中零匹配；脚本 `placeholder` ERROR 必须清零。       | 脚本 |
+| **类型一致**      | 任务 ID 三位零填充且唯一、优先级 ∈ {P0,P1,P2}（脚本 `task-id-format`/`task-id-duplicate`/`task-priority` ERROR 必须清零）；描述中文件路径指向已存在或更早任务会创建的文件（脚本 `path-missing` WARN 逐条确认）。 | 脚本 + agent |
 
 ### 5. NEEDS CLARIFICATION — 有界 bailout
 

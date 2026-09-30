@@ -15,11 +15,11 @@
    调用 `$SKILL/scripts/status.sh` 获取全局状态：
 
    ```bash
-   bash $SKILL/scripts/status.sh          # 人类可读表格
-   bash $SKILL/scripts/status.sh --json   # JSON 格式（程序化处理）
+   bash $SKILL/scripts/status.sh          # 人类可读表格（含「建议下一步」）
+   bash $SKILL/scripts/status.sh --json   # JSON 格式（程序化处理，含 next_command）
    ```
 
-   脚本自动扫描 `specmark/changes/` 和 `specmark/archive/` 目录。
+   脚本自动扫描 `specmark/changes/` 和 `specmark/archive/` 目录。阶段推断、任务计数、归档解析统一由 `$SKILL/scripts/specmark_state.py`（单一谓词源，与 check_phase.sh 共用同一实现）完成。
 
 2. **展示活动变更**
 
@@ -28,18 +28,20 @@
    | 字段 | 来源 |
    |------|------|
    | 变更名 | `specmark/changes/*/` 目录名 |
-   | 当前阶段 | 推断自产物存在性 + tasks.md 完成状态 |
-   | 任务进度 | `tasks.md` 中 `- [x]` / `- [ ]` 计数 |
+   | 当前阶段 | 推断自产物存在性 + tasks.md 完成状态（见下方规则表） |
+   | 任务进度 | `tasks.md` 中 `- [x]` / `- [ ]` 计数（completed/total） |
+   | 阻塞 | `- [~]` 任务数 |
    | delta spec | `specs/` 下 `spec.md` 文件数 |
 
-   **阶段推断规则**（由 `$SKILL/scripts/check_phase.sh` 确定性执行）：
+   **阶段推断规则**（由 `$SKILL/scripts/specmark_state.py` 确定性执行，`check_phase.sh` 与 `status.sh` 共用）：
 
    | 条件 | 推断阶段 |
    |------|----------|
-   | 无产物文件 | `new` |
-   | 有 proposal.md 无 tasks.md | `propose` |
-   | 有 tasks.md 且有未完成原始任务 | `apply` |
-   | 所有原始任务 `- [x]`，有/无收敛任务 | `converge` |
+   | 无 proposal/design/tasks（specs/ 不参与阶段判定） | `new` |
+   | 无 proposal.md，仅 design.md | `explore` |
+   | 有 proposal.md 且无 tasks.md（或 tasks.md 内 0 任务） | `propose` |
+   | 有 tasks.md 且原始任务未全勾 | `apply` |
+   | 原始任务全部 `- [x]`（收敛任务可有未完成） | `converge` |
 
 3. **展示已归档变更（最近 5 个）**
 
@@ -52,15 +54,16 @@
    | synced | `meta.json` → `synced`（✓/✗） |
    | commit SHA | `meta.json` → `commit_sha`（前 7 位） |
 
-4. **提供下一步建议**
+4. **提供下一步建议（脚本确定性路由）**
 
-   根据活动变更状态给出建议：
+   `--json` 输出的 `next_command` 字段给出全局建议（按 converge > apply > propose > new 优先级，由脚本从阶段推断结果确定性推导）；人类可读表格末行「建议下一步」显示同一结论。直接展示，不再自行推导：
 
-   | 状态 | 建议 |
+   | 状态 | 脚本 next_command |
    |------|------|
-   | 无活动变更 | "运行 `/specmark explore` 探索想法，或 `/specmark propose <name>` 开始新变更" |
-   | 有 `apply` 阶段变更 | "运行 `/specmark apply` 继续实施" |
-   | 有 `converge` 阶段变更 | "运行 `/specmark converge` 对账，或 `/specmark archive` 归档" |
+   | 无活动变更 | `/specmark explore 或 /specmark propose <name>` |
+   | 有 `converge` 阶段变更 | `/specmark converge <name>` |
+   | 有 `apply` 阶段变更 | `/specmark apply <name>` |
+   | 仅 `propose`/`new` 阶段变更 | `/specmark propose <name>` |
 
 ---
 

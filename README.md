@@ -9,17 +9,19 @@
 ## ✨ 功能特性
 
 - **八阶段状态机**：`explore`（只读探索）→ `clarify`（结构化澄清，≤5 高影响问题、8 分类扫描）→ `propose`（一步生成 proposal + design + tasks）→ `analyze`（跨产物一致性只读质量门）→ `apply`（按 tasks.md 逐条实施）→ `converge`（对比交付物与 spec，append-only 补缺）→ `archive`（归档）→ `status`（只读状态查询），支持 `$ARGUMENTS[0]` 路由与自然语言意图触发
-- **自动执行链 + 复杂度自适应短路**：阶段间自动衔接；简单变更自动短路为 propose→apply，复杂度由 `check_phase.sh complexity` 确定性判定，用户可显式覆盖
+- **自动执行链 + 两段式复杂度短路**：阶段间自动衔接；链启动时 agent 启发式预判（显式标注），propose 后 `check_phase.sh complexity` 三档确定性判定（simple/medium/complex），不一致时硬规则补跑 analyze；用户可显式覆盖
 - **长程变更自动生成 delta spec**：任务数 ≥5 或跨 ≥3 模块时在 `specs/<capability>/spec.md` 生成可验证需求规格；`archive --sync` 经 `merge_delta_spec.py` 确定性合并回主规格
 - **6 种领域类型（domain）**：code / doc / event / design / research / general，决定任务格式、apply 策略与 converge 验证方式，proposal 头部 `<!-- domain: <type> -->` 声明
-- **确定性脚本（规则 3）**：任务计数、复杂度评估、归档就绪、引用一致性等判定必须调用 `scripts/` 下脚本，禁止模型手动读文件计算
+- **确定性脚本（规则 3）**：任务计数（含 `[~]` 阻塞态）、三档复杂度、归档就绪、阶段推断、引用与产物 lint 统一实现在 `scripts/specmark_state.py`（单一谓词源），判定不过时输出 `remedy` 补救指引，禁止模型手动读文件计算
 - **ROOT 契约**：脚本从用户项目 cwd 调用，`--root` 缺省时自动取调用方所在 git 仓库顶层
-- **归档保护**：change 级 flock + commit SHA 锚定 + `.readonly` 哨兵 + 拒绝覆盖同名归档；`--dry-run` 预览
-- **安全阀**：analyze 有 CRITICAL/HIGH 发现时暂停链路等待用户决策；converge 追加任务循环超过 3 轮硬停止；`apply --auto-commit` 每任务自动 git commit（默认关闭）
+- **归档保护**：change 级 fcntl 进程锁（跨平台）+ commit SHA 锚定 + `.readonly` 哨兵 + 拒绝覆盖同名归档 + 未完成任务硬门禁（`--allow-unfinished` 显式豁免并写快照）；`--dry-run` 预览；误归档 `restore` 子命令原子恢复
+- **安全阀**：analyze 有 CRITICAL/HIGH 发现时暂停链路等待用户决策；converge 收敛轮数（脚本 `convergence_rounds` 计数）超过 3 硬停止；`apply --auto-commit` 每任务自动 git commit（只提交代码改动，默认关闭）
 
 ## 📦 安装
 
 无外部 CLI 依赖（纯文档型 skill；确定性脚本仅需 bash 与 python3）。
+
+**平台支持**：Linux / WSL2 / macOS（实测于 WSL2；macOS 依赖 POSIX fcntl，理论可用未经实测）；Windows 原生暂不支持归档/恢复（fcntl 不可用，状态查询类子命令可用）。
 
 ```bash
 # 方式一：从本工作区统一部署（部署到 ~/.zcode/skills 与 ~/.claude/skills）
@@ -69,14 +71,17 @@ flowchart LR
 
 ## ✅ 测试与验证
 
-2026-09-13 实测（v0.2.2，与 git tag 一致）：
+2026-09-30 实测（v0.2.3 工作区，本轮优化后）：
 
-- **语法检查**：4 个 shell 脚本（`archive_change.sh` / `check_phase.sh` / `install-skill.sh` / `status.sh`）`bash -n` 全部通过
-- **功能实测**（临时 git 项目内）：
-  - `check_phase.sh artifacts/tasks/converge-readiness` 输出 JSON 判定（如 `{"total":3,"completed":1,"all_done":0}`、`{"ready":false,"reason":"2 original tasks still open"}`）
-  - `status.sh` 正确输出活动变更表格（变更名 / 阶段 / 进度 / delta spec）
-  - `archive_change.sh --dry-run` 输出归档预览（目标 `specmark/archive/YYYY-MM-DD-<name>/`）且不执行实际操作
-  - 从项目子目录调用 `status.sh`，ROOT 自动定位 git 仓库顶层
+- **测试套件**：`python3 -m unittest discover -s tests` —— **53 个用例全部通过**，覆盖：
+  - 单一谓词源：任务四态解析、阶段推断规则表、三档复杂度、next_command 路由、ROOT 解析
+  - 薄入口子进程：check_phase.sh 五子命令期望输出、`--root` 任意参数位、`--json` 静默、退出码 0/1/2、remedy 字段
+  - 归档全链路：完整性与 `--allow-unfinished` 豁免快照、`--sync` 合并主 specs、`.specmark-version` 版本戳、拒绝覆盖、dry-run 不动文件、restore 往返与同名冲突/歧义、fcntl 锁竞争退出码 2
+  - check_refs 两模式：项目模式占位符/ID/优先级/路径检查、skill 模式本仓库零发现、`--root` 弃用提示
+  - merge_delta_spec：ADD/MODIFY/DELETE/KEEP 语义与二次合并字节级幂等
+  - 文档字节预算 ratchet（SKILL.md ≤20KiB、references ≤40KiB）
+- **语法检查**：4 个 `.sh` `bash -n` 通过；3 个 `.py` `py_compile` 通过
+- 平台说明：以上全部在 WSL2/Linux 实测；macOS 路径（fcntl）为理论支持未经实测；Windows 原生不支持归档/恢复
 - `test-prompts.json` 保存各子命令触发语用例，用于验证路由正确性
 
 ## 📁 目录结构
@@ -89,13 +94,15 @@ specmark/
 │   ├── explore.md … status.md
 │   ├── explore-examples.md
 │   └── troubleshooting.md
-├── scripts/            # 确定性工具 + 安装器
-│   ├── check_phase.sh      # 阶段完成判定（complexity/tasks/converge/archive-readiness/artifacts）
-│   ├── status.sh           # 全局状态查询
-│   ├── check_refs.py       # 跨文件引用一致性 lint
-│   ├── archive_change.sh   # 归档执行器（flock + 只读强制）
+├── scripts/            # 确定性工具 + 安装器（判定统一实现在 specmark_state.py，.sh 为薄入口）
+│   ├── specmark_state.py   # 单一谓词源：任务解析/阶段推断/三档复杂度/状态路由 + 归档恢复执行器（fcntl 锁）
+│   ├── check_phase.sh      # 阶段完成判定（artifacts/tasks/converge/archive-readiness/complexity）
+│   ├── status.sh           # 全局状态查询（含 next_command 确定性路由）
+│   ├── check_refs.py       # 引用与产物 lint（--skill-root 查 skill 仓库；--project 查用户项目）
+│   ├── archive_change.sh   # 归档/恢复执行器入口（fcntl 锁 + 只读强制 + 完整性门禁 + restore）
 │   ├── merge_delta_spec.py # delta spec 确定性合并
-│   └── install-skill.sh    # 多 agent 安装/更新
+│   └── install-skill.sh    # 多 agent 安装/更新（自动补脚本执行位）
+├── tests/              # unittest 测试套件（unittest discover -s tests）
 └── specmark/           # 运行时工作目录（changes/ specs/ archive/）
 ```
 

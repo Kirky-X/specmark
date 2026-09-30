@@ -157,7 +157,7 @@ flowchart TD
 
 ## 结束探索
 
-探索完成后，自动衔接下一阶段（受自动链短路机制影响，见 SKILL.md「自动链短路」节）：
+探索完成后，自动衔接下一阶段。链启动时无产物可判，按 SKILL.md「自动链短路」节的**两段式协议**：此刻仅由 agent 做规模信号的**启发式预判**（用户描述涉及单文件/typo 级 → 预判「简单」可跳过 clarify），且必须在输出中显式标注「启发式预判：<档位>」；propose 产物完成后的正式判定由 `check_phase.sh complexity` 三档脚本承载，脚本判定 ≥ medium 时硬规则补跑 analyze，**脚本结果永远优先于预判**：
 
 ```mermaid
 flowchart TD

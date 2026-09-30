@@ -9,17 +9,19 @@ English | [中文](README.md)
 ## ✨ Features
 
 - **Eight-stage state machine**: `explore` (read-only thinking) → `clarify` (structured clarification, ≤5 high-impact questions, 8-category scan) → `propose` (one-shot proposal + design + tasks) → `analyze` (read-only cross-artifact quality gate) → `apply` (execute tasks.md item by item) → `converge` (reconcile deliverables against spec, append-only gaps) → `archive` (archive) → `status` (read-only status query), routed via `$ARGUMENTS[0]` and natural-language intent.
-- **Auto-execution chain with complexity-adaptive short-circuit**: stages auto-link; simple changes short-circuit to propose→apply, judged deterministically by `check_phase.sh complexity`; the user can override explicitly.
+- **Auto-execution chain with two-stage complexity short-circuit**: stages auto-link; a heuristic pre-judgment (explicitly labeled) at chain start, then a deterministic three-tier verdict (simple/medium/complex) from `check_phase.sh complexity` after propose; a hard rule re-runs analyze when the two disagree; the user can override explicitly.
 - **Delta spec for long-running changes**: when tasks ≥ 5 or spanning ≥ 3 modules, a verifiable spec is generated at `specs/<capability>/spec.md`; `archive --sync` merges it back deterministically via `merge_delta_spec.py`.
 - **6 domain types**: code / doc / event / design / research / general — they determine task format, apply strategy, and converge verification; declared via `<!-- domain: <type> -->` in the proposal header.
-- **Deterministic scripts (Rule 3)**: task counting, complexity, archive readiness, and reference consistency must be computed by scripts under `scripts/`, never hand-counted by the model.
+- **Deterministic scripts (Rule 3)**: task counting (including `[~]` blocked state), three-tier complexity, archive readiness, stage inference, and artifact lint are implemented once in `scripts/specmark_state.py` (single predicate source); failed checks emit a `remedy` hint, and hand-counting by the model is forbidden.
 - **ROOT contract**: scripts run from the user project's cwd; `--root` defaults to the caller's git repository top level automatically.
-- **Archive protection**: change-level flock + commit SHA anchoring + `.readonly` sentinel + refusal to overwrite an existing archive target; `--dry-run` preview.
-- **Safety valves**: the chain pauses on CRITICAL/HIGH findings in analyze; converge loops past 3 rounds hard-stop; `apply --auto-commit` git-commits after each task (off by default).
+- **Archive protection**: change-level fcntl process lock (cross-platform) + commit SHA anchoring + `.readonly` sentinel + refusal to overwrite an existing archive target + a hard completeness gate (`--allow-unfinished` exempts explicitly and records a snapshot); `--dry-run` preview; `restore` sub-command recovers mis-archived changes atomically.
+- **Safety valves**: the chain pauses on CRITICAL/HIGH findings in analyze; converge hard-stops past 3 convergence rounds (script-counted via `convergence_rounds`); `apply --auto-commit` git-commits code changes after each task (off by default).
 
 ## 📦 Installation
 
 No external CLI dependency (pure documentation skill; the scripts only need bash and python3).
+
+**Platform support**: Linux / WSL2 / macOS (tested on WSL2; macOS relies on POSIX fcntl and is expected to work but untested); native Windows is not supported for archive/restore (no fcntl; query-only sub-commands work).
 
 ```bash
 # Option 1: deploy from this workspace (to ~/.zcode/skills and ~/.claude/skills)
@@ -69,15 +71,17 @@ The chain is not strictly linear: clarify / analyze / converge can be skipped as
 
 ## ✅ Tests & Verification
 
-Verified 2026-09-13 (v0.2.2, matching the git tag):
+2026-09-30, measured on the v0.2.3 working tree after this optimization round:
 
-- **Syntax**: all 4 shell scripts (`archive_change.sh` / `check_phase.sh` / `install-skill.sh` / `status.sh`) pass `bash -n`.
-- **Functional** (inside a temporary git project):
-  - `check_phase.sh artifacts/tasks/converge-readiness` emit JSON verdicts (e.g. `{"total":3,"completed":1,"all_done":0}`, `{"ready":false,"reason":"2 original tasks still open"}`)
-  - `status.sh` prints the active-change table (name / stage / progress / delta spec)
-  - `archive_change.sh --dry-run` prints an archive preview (target `specmark/archive/YYYY-MM-DD-<name>/`) without executing
-  - Calling `status.sh` from a project subdirectory auto-locates the git repository top level
-- `test-prompts.json` stores trigger-phrase cases per subcommand for routing verification.
+- **Test suite**: `python3 -m unittest discover -s tests` — **53 tests, all passing**, covering:
+  - Single predicate source: four-state task parsing, stage inference table, three-tier complexity, next_command routing, ROOT resolution
+  - Thin-entry subprocesses: check_phase.sh five sub-commands, `--root` in any position, `--json` silence, exit codes 0/1/2, remedy fields
+  - Full archive chain: completeness gate & `--allow-unfinished` snapshot, `--sync` merge into main specs, `.specmark-version` stamp, overwrite refusal, dry-run moving nothing, restore round-trip with conflict/ambiguity cases, fcntl lock contention exit code 2
+  - check_refs both modes: project-mode placeholder/ID/priority/path checks, skill-mode clean on this repo, `--root` deprecation hint
+  - merge_delta_spec: ADD/MODIFY/DELETE/KEEP semantics and byte-identical idempotent re-merge
+  - Docs byte-budget ratchet (SKILL.md ≤ 20 KiB, references ≤ 40 KiB)
+- **Syntax**: 4 `.sh` pass `bash -n`; 3 `.py` pass `py_compile`.
+- Platform note: everything above tested on WSL2/Linux; the macOS path (fcntl) is expected-but-untested; native Windows does not support archive/restore.
 
 ## 📁 Directory Structure
 
@@ -89,13 +93,15 @@ specmark/
 │   ├── explore.md … status.md
 │   ├── explore-examples.md
 │   └── troubleshooting.md
-├── scripts/            # Deterministic tools + installer
-│   ├── check_phase.sh      # Stage gating (complexity/tasks/converge/archive-readiness/artifacts)
-│   ├── status.sh           # Global status query
-│   ├── check_refs.py       # Cross-file reference lint
-│   ├── archive_change.sh   # Archive executor (flock + read-only enforcement)
+├── scripts/            # Deterministic tools + installer (logic lives in specmark_state.py; .sh files are thin entries)
+│   ├── specmark_state.py   # Single predicate source: task parsing / stage inference / three-tier complexity / status routing + archive & restore executor (fcntl lock)
+│   ├── check_phase.sh      # Stage gating (artifacts/tasks/converge/archive-readiness/complexity)
+│   ├── status.sh           # Global status query (with deterministic next_command routing)
+│   ├── check_refs.py       # Reference & artifact lint (--skill-root for the skill repo; --project for user projects)
+│   ├── archive_change.sh   # Archive/restore entry (fcntl lock + read-only enforcement + completeness gate)
 │   ├── merge_delta_spec.py # Deterministic delta spec merge
-│   └── install-skill.sh    # Multi-agent install/update
+│   └── install-skill.sh    # Multi-agent install/update (restores script exec bits)
+├── tests/              # unittest suite (python3 -m unittest discover -s tests)
 └── specmark/           # Runtime working directory (changes/ specs/ archive/)
 ```
 
