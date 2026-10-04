@@ -55,7 +55,7 @@ git clone https://github.com/Kirky-X/specmark && cd specmark
 ```bash
 bash $SKILL/scripts/status.sh                            # 全局状态（--json 可选）
 bash $SKILL/scripts/check_phase.sh tasks add-auth        # 任务完成计数（JSON）
-python3 $SKILL/scripts/check_refs.py --root .            # 跨文件引用一致性 lint
+python3 $SKILL/scripts/check_refs.py --project .         # 活动变更产物 lint（占位符/任务 ID/优先级/路径存在性）
 ```
 
 阶段协作链路：
@@ -71,7 +71,7 @@ flowchart LR
 
 ## ✅ 测试与验证
 
-2026-09-30 实测（v0.2.3 工作区，本轮优化后）：
+2026-10-04 实测（v0.2.5 工作区）：
 
 - **测试套件**：`python3 -m unittest discover -s tests` —— **53 个用例全部通过**，覆盖：
   - 单一谓词源：任务四态解析、阶段推断规则表、三档复杂度、next_command 路由、ROOT 解析
@@ -80,9 +80,9 @@ flowchart LR
   - check_refs 两模式：项目模式占位符/ID/优先级/路径检查、skill 模式本仓库零发现、`--root` 弃用提示
   - merge_delta_spec：ADD/MODIFY/DELETE/KEEP 语义与二次合并字节级幂等
   - 文档字节预算 ratchet（SKILL.md ≤20KiB、references ≤40KiB）
-- **语法检查**：4 个 `.sh` `bash -n` 通过；3 个 `.py` `py_compile` 通过
+- **语法检查**：4 个 `.sh` `bash -n` 通过；4 个 `.py` `py_compile` 通过
 - 平台说明：以上全部在 WSL2/Linux 实测；macOS 路径（fcntl）为理论支持未经实测；Windows 原生不支持归档/恢复
-- `test-prompts.json` 保存各子命令触发语用例，用于验证路由正确性
+- `test-prompts.json` 保存子命令触发语用例（16 条，覆盖除 `converge` 外的 7 个子命令），用于验证路由正确性
 
 ## 📁 目录结构
 
@@ -101,6 +101,7 @@ specmark/
 │   ├── check_refs.py       # 引用与产物 lint（--skill-root 查 skill 仓库；--project 查用户项目）
 │   ├── archive_change.sh   # 归档/恢复执行器入口（fcntl 锁 + 只读强制 + 完整性门禁 + restore）
 │   ├── merge_delta_spec.py # delta spec 确定性合并
+│   ├── skill_lint.py       # skill 仓工程基线体检（frontmatter/JSON 资产/版本一致性/引用路径 + lint-checks.json 门禁）
 │   └── install-skill.sh    # 多 agent 安装/更新（自动补脚本执行位）
 ├── tests/              # unittest 测试套件（unittest discover -s tests）
 └── specmark/           # 运行时工作目录（changes/ specs/ archive/）

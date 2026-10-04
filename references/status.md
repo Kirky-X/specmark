@@ -56,14 +56,15 @@
 
 4. **提供下一步建议（脚本确定性路由）**
 
-   `--json` 输出的 `next_command` 字段给出全局建议（按 converge > apply > propose > new 优先级，由脚本从阶段推断结果确定性推导）；人类可读表格末行「建议下一步」显示同一结论。直接展示，不再自行推导：
+   `--json` 输出的 `next_command` 字段给出全局建议（按 converge > apply > propose > explore > new 优先级，由脚本从阶段推断结果确定性推导）；人类可读表格末行「建议下一步」显示同一结论。直接展示，不再自行推导：
 
    | 状态 | 脚本 next_command |
    |------|------|
    | 无活动变更 | `/specmark explore 或 /specmark propose <name>` |
    | 有 `converge` 阶段变更 | `/specmark converge <name>` |
    | 有 `apply` 阶段变更 | `/specmark apply <name>` |
-   | 仅 `propose`/`new` 阶段变更 | `/specmark propose <name>` |
+   | 有 `propose` 阶段变更 | `/specmark propose <name>（补全产物）` |
+   | 仅 `explore`/`new` 阶段变更 | `/specmark propose <name>` |
 
 ---
 
@@ -74,12 +75,14 @@
 
 **活动变更：** 2 个
 
-| 变更名 | 阶段 | 进度 | delta spec |
-|--------|------|------|------------|
-| add-auth | apply | 3/7 | 2 个 |
-| fix-bugs | converge | 6/6 | 1 个 |
+| 变更名 | 阶段 | 进度 | 阻塞 | delta spec |
+|--------|------|------|------|------------|
+| add-auth | apply | 3/7 | 1 | 2 个 |
+| fix-bugs | converge | 6/6 | 0 | 1 个 |
 
 **已归档变更：** 无
+
+**建议下一步：** /specmark converge fix-bugs
 ```
 
 **Guardrails**

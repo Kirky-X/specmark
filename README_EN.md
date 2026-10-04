@@ -55,7 +55,7 @@ The deterministic scripts can also be called from the user project root (`$SKILL
 ```bash
 bash $SKILL/scripts/status.sh                            # Global status (--json optional)
 bash $SKILL/scripts/check_phase.sh tasks add-auth        # Task completion counts (JSON)
-python3 $SKILL/scripts/check_refs.py --root .            # Cross-file reference lint
+python3 $SKILL/scripts/check_refs.py --project .         # Active-change artifact lint (placeholders / task IDs / priorities / path existence)
 ```
 
 Stage collaboration chain:
@@ -71,7 +71,7 @@ The chain is not strictly linear: clarify / analyze / converge can be skipped as
 
 ## ✅ Tests & Verification
 
-2026-09-30, measured on the v0.2.3 working tree after this optimization round:
+2026-10-04, measured on the v0.2.5 working tree:
 
 - **Test suite**: `python3 -m unittest discover -s tests` — **53 tests, all passing**, covering:
   - Single predicate source: four-state task parsing, stage inference table, three-tier complexity, next_command routing, ROOT resolution
@@ -80,7 +80,7 @@ The chain is not strictly linear: clarify / analyze / converge can be skipped as
   - check_refs both modes: project-mode placeholder/ID/priority/path checks, skill-mode clean on this repo, `--root` deprecation hint
   - merge_delta_spec: ADD/MODIFY/DELETE/KEEP semantics and byte-identical idempotent re-merge
   - Docs byte-budget ratchet (SKILL.md ≤ 20 KiB, references ≤ 40 KiB)
-- **Syntax**: 4 `.sh` pass `bash -n`; 3 `.py` pass `py_compile`.
+- **Syntax**: 4 `.sh` pass `bash -n`; 4 `.py` pass `py_compile`.
 - Platform note: everything above tested on WSL2/Linux; the macOS path (fcntl) is expected-but-untested; native Windows does not support archive/restore.
 
 ## 📁 Directory Structure
@@ -100,6 +100,7 @@ specmark/
 │   ├── check_refs.py       # Reference & artifact lint (--skill-root for the skill repo; --project for user projects)
 │   ├── archive_change.sh   # Archive/restore entry (fcntl lock + read-only enforcement + completeness gate)
 │   ├── merge_delta_spec.py # Deterministic delta spec merge
+│   ├── skill_lint.py       # Skill-repo engineering baseline audit (frontmatter / JSON assets / version consistency / referenced paths + lint-checks.json gates)
 │   └── install-skill.sh    # Multi-agent install/update (restores script exec bits)
 ├── tests/              # unittest suite (python3 -m unittest discover -s tests)
 └── specmark/           # Runtime working directory (changes/ specs/ archive/)

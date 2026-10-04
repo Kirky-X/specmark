@@ -17,10 +17,11 @@
    ```
 
    脚本输出 JSON：
-   - `ready=true`：所有原始任务已完成，可进入 converge
-   - `ready=false` + `reason`：不能进入 converge 的原因（如仍有原始任务未完成）
+   - `ready=true` + `original_total`：所有原始任务已完成，可进入 converge
+   - `ready=false` + `original_total`/`original_open`：仍有原始任务未完成（`original_open` 为未完成任务数）
+   - `ready=false` + `reason`：tasks.md 缺失或 0 任务等结构问题（如 `tasks_md_not_found`、`no tasks found`）
 
-   若 `ready=false`，暂停并建议：“Apply 未完成（`<reason>`）。先完成 `/specmark apply` 再 converge。”不继续。
+   若 `ready=false`，暂停并按输出 `remedy` 行动（仍有未完成任务时先完成 `/specmark apply` 再 converge），不继续。
 
 2. **读取产物与已实施交付物（drift 基线按 domain 选择）**
 

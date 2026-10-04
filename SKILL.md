@@ -63,13 +63,7 @@ metadata:
 
 **声明方式**：在 proposal.md 头部加 `<!-- domain: <type> -->`（HTML 注释，不影响渲染）。
 
-**自动推断规则**（无显式声明时）：
-- 任务描述含源码扩展名（`.ts/.py/.go/.rs/.java/.js/.jsx/.tsx/.c/.cpp/.h`）→ `code`
-- 任务描述含 `→ <path>` 且目标为 `.md/.txt/.docx` → `doc`
-- 任务描述含 `→ <path>` 且目标为 `.fig/.sketch/.xd` → `design`
-- 任务描述无可验证文件引用 → `general`
-
-默认 domain 为 `code`（向后兼容）。
+无显式声明时一律按 `code` 处理，脚本不做自动推断。
 
 ## 调用示例
 
