@@ -4,7 +4,7 @@ description: "规格驱动变更工作流，八阶段(explore/clarify/propose/an
 argument-hint: "[explore|clarify|propose|analyze|apply|converge|archive|status]"
 license: MIT
 metadata:
-  version: "0.2.5"
+  version: "0.2.6"
   author: "Kirky-X"
   repo: "https://github.com/Kirky-X/specmark"
   tags: "spec-driven, proposal, design, tasks, specmark, change-management, specification, workflow"
