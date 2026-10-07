@@ -1,6 +1,6 @@
 ---
 name: specmark
-description: "规格驱动变更工作流，八阶段(explore/clarify/propose/analyze/apply/converge/archive/status)。触发：生成 proposal/design/tasks、实施任务、归档 change、查看状态、提到 specmark 工作流。"
+description: "规格驱动变更工作流，八阶段(explore/clarify/propose/analyze/apply/converge/archive/status)。触发：生成 proposal/design/tasks、实施任务、归档 change、查看状态、提到 specmark 工作流。边界：apply/converge 之后的代码级审查→diting/tiangang（可按 pua 的 phase 后协议编排），本 skill 审的是产物一致性与流程纪律。"
 argument-hint: "[explore|clarify|propose|analyze|apply|converge|archive|status]"
 license: MIT
 metadata:
