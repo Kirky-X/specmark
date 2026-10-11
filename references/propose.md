@@ -61,7 +61,7 @@
    > **输入：** 变更名 `<name>`
    > **输出：** 进度状态（全新 / 继续中 + 已完成产物列表）
 
-   读 `specmark/changes/<name>/` 下的全部产物（`proposal.md` / `design.md` / `tasks.md`）并检查各自状态以了解已完成什么。若三份产物均不存在，视为全新变更。若 `proposal.md` 已存在且含 `## Clarifications` 节（由 `clarify` 写入），步骤 4a 创建/更新 `proposal.md` 时必须保留该节，不得覆盖。
+   读 `specmark/changes/<name>/` 下的全部产物（`proposal.md` / `design.md` / `tasks.md`）并检查各自状态以了解已完成什么。若三份产物均不存在，视为全新变更。若 `proposal.md` 已存在，必须**保留其中的决策记忆节**不得覆盖：`## Clarifications`（由 `clarify` 写入）、`## Scope`（覆盖范围）、`## Non-Goals`（排除项及理由）与 `## Deferred`（推迟项 + 原因 + 重开条件）。proposal 已存在而需求再变 = 修订而非重新提案，走 [`revision-protocol.md`](revision-protocol.md)（重发全量产物、保留 excluded/deferred）。
 
 4. **按序创建产物直到 apply-ready**
 
@@ -156,11 +156,17 @@ analyze 完成后，展示结果并自动衔接下一步：
 ## Non-Goals
 <明确不做什么。防止范围蔓延。每条写明为什么排除>
 
+## Deferred
+<推迟项：以后要做、现在不做的事。每条写三样——推迟项、原因、重开条件（什么信号出现时重启它）。与 Non-Goals 的区别：排除 = 不做；推迟 = 以后做且有明确重开条件。Scope / Non-Goals / Deferred 三节并称「决策记忆」：重开 change 时原样保留，不得静默重新纳入已排除范围，也不得丢掉已承诺的重开条件（协议见 revision-protocol.md）>
+
 ## Clarifications
 <来自 /specmark clarify 的问答记录。若无则省略本节>
 
 - **[<category>]** Q: <问题>
   A: <用户回答>
+
+## 来源与验证（可选）
+<外部对标/参考来源变更时填写：改动创意来自哪个外部项目/文档（仓名+章节行号）、经谁复核（独立 subagent/确定性检查）、哪些结论 verified 哪些 unconfirmed。无外部来源的变更省略本节>
 
 ## NEEDS CLARIFICATION
 <仅当 propose 自检后仍有无法转为具体任务的需求时才写。硬上限 3 条>

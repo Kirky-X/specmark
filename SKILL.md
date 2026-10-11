@@ -4,7 +4,7 @@ description: "规格驱动变更工作流，八阶段(explore/clarify/propose/an
 argument-hint: "[explore|clarify|propose|analyze|apply|converge|archive|status]"
 license: MIT
 metadata:
-  version: "0.2.7"
+  version: "0.2.8"
   author: "Kirky-X"
   repo: "https://github.com/Kirky-X/specmark"
   tags: "spec-driven, proposal, design, tasks, specmark, change-management, specification, workflow"
@@ -20,7 +20,7 @@ metadata:
 | ---------- | ---------------------------------------------------------------------- | ------------------------ |
 | `explore`  | 探索/思考模式（只读，不写应用代码）                                    | `references/explore.md`  |
 | `clarify`  | 结构化澄清，自动链 explore→clarify 衔接点（≤5 高影响问题，8 分类扫描） | `references/clarify.md`  |
-| `propose`  | 一步生成 proposal + design + tasks 全套产物（长程变更含 delta spec）   | `references/propose.md`  |
+| `propose`  | 一步生成 proposal + design + tasks 全套产物（长程变更含 delta spec；重开既有 change 走修订协议）   | `references/propose.md`  |
 | `analyze`  | 跨产物一致性分析，自动链 propose→analyze 衔接点（只读质量门）          | `references/analyze.md`  |
 | `apply`    | 按 tasks.md 实施任务，逐条勾选                                         | `references/apply.md`    |
 | `converge` | 收敛：自动链 apply→converge 衔接点，对比交付物与 spec，append 缺漏任务   | `references/converge.md` |
@@ -28,6 +28,7 @@ metadata:
 | `status`   | 只读查询活动变更与历史归档概览                                          | `references/status.md`   |
 
 > 深入参考：探索模式的 5 步系统法与深度研究子模式详见 `references/explore-examples.md`。
+> **需求变更协议**：change 目录已在、proposal 已成型而需求再变时，按 [`references/revision-protocol.md`](references/revision-protocol.md) 走修订（读全量 → 只改受影响 → 保留 Scope/Non-Goals/Deferred/Clarifications → 重发全量产物附「动了什么」一行），不重新 explore/clarify/propose；apply 中途的故障恢复走 [`references/troubleshooting.md`](references/troubleshooting.md)。
 
 **Flags 速记**：
 
